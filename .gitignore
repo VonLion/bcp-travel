@@ -1,0 +1,9 @@
+# Local Claude Code tooling
+.claude/
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc

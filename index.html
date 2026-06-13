@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <title>ezOV</title>
+  <meta name="description" content="Vertrektijden en routes vanaf huis — Gaasperplas, Leerdamhof, Bijlmer ArenA">
+  <meta name="theme-color" content="#1c1b33">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="icons/icon-192.png">
+  <!-- iOS PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ezOV">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+</head>
+<body>
+  <div id="pull-indicator" aria-hidden="true"><div class="spinner"></div></div>
+
+  <main id="app">
+    <header>
+      <h1>ezOV</h1>
+      <button id="refresh-btn" aria-label="Ververs" title="Ververs">&#8635;</button>
+    </header>
+
+    <!-- Departure boards -->
+    <section id="boards">
+      <div class="board" id="board-metro">
+        <div class="board-head">
+          <span class="line-badge mode-subway">53</span>
+          <div class="board-title">
+            <h2>Gaasperplas</h2>
+            <p class="board-sub">Metro &middot; richting Centraal &middot; <span class="walk">12 min lopen</span></p>
+          </div>
+        </div>
+        <ul class="departures" data-empty="Geen vertrektijden gevonden"></ul>
+      </div>
+
+      <div class="board" id="board-bus">
+        <div class="board-head">
+          <span class="line-badge mode-bus">47</span>
+          <div class="board-title">
+            <h2>Leerdamhof</h2>
+            <p class="board-sub">Bus &middot; richting Stn. Bijlmer ArenA &middot; <span class="walk">7 min lopen</span></p>
+          </div>
+        </div>
+        <ul class="departures" data-empty="Geen vertrektijden gevonden"></ul>
+      </div>
+      <p id="boards-updated"></p>
+    </section>
+
+    <!-- Destination search -->
+    <section id="search">
+      <div class="search-wrap">
+        <input id="dest-input" type="text" placeholder="Waar wil je heen?"
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+               enterkeyhint="search">
+        <button id="clear-btn" aria-label="Wissen" hidden>&times;</button>
+        <ul id="suggestions" hidden></ul>
+      </div>
+      <div id="recents" hidden>
+        <p class="recents-label">Recent</p>
+        <div id="recent-chips"></div>
+      </div>
+    </section>
+
+    <!-- Route results -->
+    <section id="routes" hidden>
+      <h2 id="routes-title"></h2>
+      <div id="route-cards"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
