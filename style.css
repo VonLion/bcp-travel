@@ -418,7 +418,18 @@ ul.departures li {
 
 .itinerary {
   border-top: 1px solid var(--border);
+}
+
+.itin-summary {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
   padding: 10px 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
 }
 
 .itin-times {
@@ -447,6 +458,77 @@ ul.departures li {
 .leg-sep { opacity: 0.55; font-size: 11px; }
 
 .leg-walk { white-space: nowrap; }
+
+.itin-chevron {
+  margin-left: auto;
+  color: var(--accent);
+  transition: transform 0.2s;
+}
+
+.itinerary.open .itin-chevron { transform: rotate(180deg); }
+
+/* ---- Expanded step-by-step detail ---- */
+.itin-detail { display: none; padding: 4px 0 12px; }
+
+.itinerary.open .itin-detail { display: block; }
+
+.leg-detail {
+  position: relative;
+  padding: 6px 0 6px 14px;
+  border-left: 2px solid var(--border);
+  margin-left: 4px;
+}
+
+.leg-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.leg-dir { font-size: 13.5px; font-weight: 600; }
+
+.leg-stop {
+  display: flex;
+  gap: 8px;
+  font-size: 13.5px;
+  padding: 1px 0;
+}
+
+.leg-stop-time {
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 38px;
+}
+
+.leg-stop-name { color: var(--text); }
+
+.leg-ride {
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 2px 0 2px 46px;
+}
+
+.leg-walk-detail {
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 6px 0 6px 4px;
+}
+
+.maps-link {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 8px 14px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.maps-link:active { opacity: 0.7; }
 
 .route-card .status {
   padding: 10px 0 4px;

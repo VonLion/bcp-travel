@@ -48,18 +48,21 @@ const ROUTE_ORIGINS = [
     icon: '🚇',
     label: 'Metro vanaf Gaasperplas',
     place: 'nl-OpenOV_NL:S:30009550',
+    coord: '52.311016,4.984585', // for the Google Maps link
     offsetMin: 0,
   },
   {
     icon: '🚌',
     label: 'Bus vanaf Leerdamhof',
     place: 'nl-OpenOV_3980641',
+    coord: '52.30539,4.97526',
     offsetMin: 0,
   },
   {
     icon: '🚲',
     label: 'Vanaf Bijlmer ArenA',
     place: 'nl-OpenOV_NL:S:30000559', // Station Bijlmer ArenA
+    coord: '52.311302,4.947578',
     offsetMin: 15,
     note: '+15 min fietsen',
   },
@@ -141,7 +144,7 @@ function renderBoard(board) {
     toggle.hidden = !hasMore;
     toggle.setAttribute('aria-expanded', String(!!board._expanded));
     toggle.querySelector('.expand-label').textContent =
-      board._expanded ? 'Minder' : 'Volgend uur';
+      board._expanded ? 'Minder' : 'Komend uur';
   }
 }
 
@@ -352,7 +355,8 @@ async function planRoutes(dest) {
     return card;
   });
 
-  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Search + results live at the top now; scroll the boards out of sight.
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 
   await Promise.allSettled(ROUTE_ORIGINS.map(async (origin, i) => {
     const card = cards[i];
@@ -365,7 +369,7 @@ async function planRoutes(dest) {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`plan ${res.status}`);
       const data = await res.json();
-      renderItineraries(card, data.itineraries || []);
+      renderItineraries(card, data.itineraries || [], origin, dest);
     } catch (err) {
       console.error(err);
       card.querySelectorAll('.skeleton').forEach((s) => s.remove());
@@ -374,7 +378,7 @@ async function planRoutes(dest) {
   }));
 }
 
-function renderItineraries(card, itineraries) {
+function renderItineraries(card, itineraries, origin, dest) {
   card.querySelectorAll('.skeleton').forEach((s) => s.remove());
 
   if (itineraries.length === 0) {
@@ -385,6 +389,8 @@ function renderItineraries(card, itineraries) {
   for (const it of itineraries.slice(0, ITINERARIES_PER_ROUTE)) {
     const box = el('div', 'itinerary', '');
 
+    // --- tappable summary row ---
+    const summary = el('button', 'itin-summary', '');
     const times = el('div', 'itin-times', '');
     const start = new Date(it.startTime);
     const end = new Date(it.endTime);
@@ -392,7 +398,7 @@ function renderItineraries(card, itineraries) {
     const transfers = it.transfers === 1 ? '1 overstap' : `${it.transfers} overstappen`;
     times.append(el('span', 'itin-meta', transfers));
     times.append(el('span', 'itin-duration', formatDuration(it.duration)));
-    box.append(times);
+    summary.append(times);
 
     const legsRow = el('div', 'itin-legs', '');
     const parts = [];
@@ -402,18 +408,85 @@ function renderItineraries(card, itineraries) {
         if (mins >= 2) parts.push(el('span', 'leg-walk', `🚶 ${mins}'`));
         continue;
       }
-      const badge = el('span', `line-badge small mode-${leg.mode.toLowerCase()}`,
-        leg.routeShortName || leg.displayName || leg.mode);
-      badge.title = `${leg.from.name} → ${leg.headsign || leg.to.name}`;
-      parts.push(badge);
+      parts.push(el('span', `line-badge small mode-${leg.mode.toLowerCase()}`, shortLine(leg)));
     }
     parts.forEach((p, idx) => {
       if (idx > 0) legsRow.append(el('span', 'leg-sep', '›'));
       legsRow.append(p);
     });
-    box.append(legsRow);
+    legsRow.append(el('span', 'itin-chevron', '▾'));
+    summary.append(legsRow);
+    box.append(summary);
+
+    // --- expandable step-by-step detail ---
+    const detail = renderItineraryDetail(it, origin, dest);
+    box.append(detail);
+    summary.addEventListener('click', () => box.classList.toggle('open'));
+
     card.append(box);
   }
+}
+
+function renderItineraryDetail(it, origin, dest) {
+  const detail = el('div', 'itin-detail', '');
+
+  for (const leg of it.legs) {
+    if (leg.mode === 'WALK') {
+      const mins = Math.round(leg.duration / 60);
+      if (mins < 1) continue;
+      const where = leg.to?.name && !/^end$/i.test(leg.to.name)
+        ? ` naar ${cleanStop(leg.to.name)}` : ' naar de bestemming';
+      detail.append(el('div', 'leg-walk-detail', `🚶 ${mins} min lopen${where}`));
+      continue;
+    }
+
+    const row = el('div', 'leg-detail', '');
+
+    const head = el('div', 'leg-detail-head', '');
+    head.append(el('span', `line-badge small mode-${leg.mode.toLowerCase()}`, shortLine(leg)));
+    head.append(el('span', 'leg-dir', `richting ${leg.headsign || cleanStop(leg.to.name)}`));
+    row.append(head);
+
+    row.append(stopLine(leg.from, 'instappen'));
+
+    const stops = leg.intermediateStops?.length || 0;
+    const ride = stops > 0
+      ? `${stops} ${stops === 1 ? 'halte' : 'haltes'} · ${formatDuration(leg.duration)}`
+      : formatDuration(leg.duration);
+    row.append(el('div', 'leg-ride', ride));
+
+    row.append(stopLine(leg.to, 'uitstappen'));
+    detail.append(row);
+  }
+
+  // Direct Google Maps link for this journey (origin stop → destination, transit).
+  const o = it.legs[0]?.from;
+  const oCoord = o?.lat ? `${o.lat},${o.lon}` : origin.coord;
+  const maps = el('a', 'maps-link', 'Open in Google Maps ↗');
+  maps.href = `https://www.google.com/maps/dir/?api=1`
+    + `&origin=${encodeURIComponent(oCoord)}`
+    + `&destination=${encodeURIComponent(`${dest.lat},${dest.lon}`)}`
+    + `&travelmode=transit`;
+  maps.target = '_blank';
+  maps.rel = 'noopener';
+  detail.append(maps);
+
+  return detail;
+}
+
+function stopLine(place, verb) {
+  const row = el('div', 'leg-stop', '');
+  row.append(el('span', 'leg-stop-time', timeFmt.format(new Date(place.departure || place.arrival))));
+  let txt = `${verb}: ${cleanStop(place.name)}`;
+  if (place.track) txt += ` · spoor ${place.track}`;
+  row.append(el('span', 'leg-stop-name', txt));
+  return row;
+}
+
+// Dutch transit names often carry a "Amsterdam, " city prefix; trim the
+// redundant local one for readability.
+function cleanStop(name) {
+  return (name || '').replace(/^Amsterdam,\s*/, '');
 }
 
 function formatDuration(seconds) {

@@ -25,6 +25,27 @@
       <button id="refresh-btn" aria-label="Ververs" title="Ververs">&#8635;</button>
     </header>
 
+    <!-- Destination search -->
+    <section id="search">
+      <div class="search-wrap">
+        <input id="dest-input" type="text" placeholder="Waar wil je heen?"
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+               enterkeyhint="search">
+        <button id="clear-btn" aria-label="Wissen" hidden>&times;</button>
+        <ul id="suggestions" hidden></ul>
+      </div>
+      <div id="recents" hidden>
+        <p class="recents-label">Recent</p>
+        <div id="recent-chips"></div>
+      </div>
+    </section>
+
+    <!-- Route results -->
+    <section id="routes" hidden>
+      <h2 id="routes-title"></h2>
+      <div id="route-cards"></div>
+    </section>
+
     <!-- Departure boards -->
     <section id="boards">
       <div class="board" id="board-metro">
@@ -59,33 +80,12 @@
         </div>
         <ul class="departures" data-empty="Geen treinen gevonden"></ul>
         <button class="board-expand" hidden aria-expanded="false">
-          <span class="expand-label">Volgend uur</span>
+          <span class="expand-label">Komend uur</span>
           <span class="expand-arrow" aria-hidden="true">&#9662;</span>
         </button>
       </div>
 
       <p id="boards-updated"></p>
-    </section>
-
-    <!-- Destination search -->
-    <section id="search">
-      <div class="search-wrap">
-        <input id="dest-input" type="text" placeholder="Waar wil je heen?"
-               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-               enterkeyhint="search">
-        <button id="clear-btn" aria-label="Wissen" hidden>&times;</button>
-        <ul id="suggestions" hidden></ul>
-      </div>
-      <div id="recents" hidden>
-        <p class="recents-label">Recent</p>
-        <div id="recent-chips"></div>
-      </div>
-    </section>
-
-    <!-- Route results -->
-    <section id="routes" hidden>
-      <h2 id="routes-title"></h2>
-      <div id="route-cards"></div>
     </section>
   </main>
 
