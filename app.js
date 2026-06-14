@@ -45,28 +45,58 @@ const BOARDS = [
 
 const ROUTE_ORIGINS = [
   {
-    icon: '🚇',
+    iconType: 'metro',
     label: 'Metrostation Gaasperplas',
     place: 'nl-OpenOV_NL:S:30009550',
     coord: '52.311016,4.984585', // for the Google Maps link
     offsetMin: 0,
   },
   {
-    icon: '🚌',
+    iconType: 'bus',
     label: 'Bushalte Leerdamhof',
     place: 'nl-OpenOV_3980641',
     coord: '52.30539,4.97526',
     offsetMin: 0,
   },
   {
-    icon: '🚲',
+    iconType: 'bike',
     label: 'Bijlmer ArenA',
     place: 'nl-OpenOV_NL:S:30000559', // Station Bijlmer ArenA
     coord: '52.311302,4.947578',
-    offsetMin: 15,
-    note: '+15 min fietsen',
+    offsetMin: 15, // bike time to the station (not shown — the user knows)
   },
 ];
+
+// Inline mode-icon SVGs, shared by the route-card headers. The board headers
+// use the same artwork (see index.html).
+const MODE_SVGS = {
+  metro: '<svg viewBox="0 0 52 44" aria-hidden="true">'
+    + '<path d="M6 42 L6 24 A20 17 0 0 1 46 24 L46 42 Z" fill="#0f0e1f"/>'
+    + '<rect x="13" y="10" width="26" height="28" rx="7" fill="#d6231d"/>'
+    + '<rect x="13" y="23" width="26" height="2.5" fill="#ffffff" opacity="0.22"/>'
+    + '<rect x="17" y="14" width="18" height="8" rx="3" fill="#11101f"/>'
+    + '<circle cx="19" cy="34" r="2.2" fill="#ffffff"/><circle cx="33" cy="34" r="2.2" fill="#ffffff"/></svg>',
+  bus: '<svg viewBox="0 0 52 44" aria-hidden="true">'
+    + '<rect x="6" y="12" width="40" height="20" rx="3" fill="#14a3a3"/>'
+    + '<rect x="9" y="15" width="30" height="8" rx="2" fill="#11101f"/>'
+    + '<line x1="16" y1="15" x2="16" y2="23" stroke="#14a3a3" stroke-width="1.5"/>'
+    + '<line x1="24" y1="15" x2="24" y2="23" stroke="#14a3a3" stroke-width="1.5"/>'
+    + '<line x1="32" y1="15" x2="32" y2="23" stroke="#14a3a3" stroke-width="1.5"/>'
+    + '<circle cx="43" cy="28" r="1.8" fill="#ffd34d"/>'
+    + '<circle cx="16" cy="33" r="4" fill="#11101f"/><circle cx="36" cy="33" r="4" fill="#11101f"/>'
+    + '<circle cx="16" cy="33" r="1.6" fill="#14a3a3"/><circle cx="36" cy="33" r="1.6" fill="#14a3a3"/></svg>',
+  bike: '<svg viewBox="0 0 52 44" aria-hidden="true">'
+    + '<g fill="none" stroke="#ffc917" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">'
+    + '<circle cx="14" cy="31" r="8"/><circle cx="38" cy="31" r="8"/>'
+    + '<path d="M14 31 L24 31 L19 16 L31 16 L38 31"/><path d="M24 31 L31 16"/>'
+    + '<path d="M16 16 L22 16"/><path d="M29 14 L34 14"/></g></svg>',
+};
+
+function modeIcon(type) {
+  const span = el('span', 'mode-tile', '');
+  span.innerHTML = MODE_SVGS[type] || '';
+  return span;
+}
 
 // Favourite destinations — edit freely. `label` shows in the split-flap
 // placeholder and the quick-pick chips; `address` is geocoded when tapped.
@@ -471,8 +501,7 @@ async function planRoutes(dest) {
   const cards = ROUTE_ORIGINS.map((origin) => {
     const card = el('div', 'route-card', '');
     const head = el('div', 'route-card-head', '');
-    head.append(el('span', 'icon', origin.icon), el('h3', '', origin.label));
-    if (origin.note) head.append(el('span', 'route-note', origin.note));
+    head.append(modeIcon(origin.iconType), el('h3', '', origin.label));
     head.append(mapsLink(origin, dest));
     card.append(head, el('div', 'skeleton', ''), el('div', 'skeleton', ''));
     cardsBox.append(card);
