@@ -112,13 +112,11 @@ function renderBoard(board) {
     shown = within.length >= board.count ? within : all.slice(0, board.count);
   }
 
-  // Remember the previously shown values so we can split-flap only the
-  // cells that actually changed on this render.
+  // Remember the previously shown countdown per row so we can split-flap
+  // only the digits that actually changed on this render.
   const prevCd = {};
-  const prevTm = {};
   list.querySelectorAll('li[data-key]').forEach((li) => {
     prevCd[li.dataset.key] = li.dataset.cd;
-    prevTm[li.dataset.key] = li.dataset.tm;
   });
 
   list.innerHTML = '';
@@ -129,12 +127,10 @@ function renderBoard(board) {
     const delayMin = Math.round((dep - sched) / 60000);
     const key = st.tripId || `${st.routeShortName}-${st.place.scheduledDeparture}`;
     const cdText = mins === 0 ? 'nu' : `${mins} min`;
-    const tmText = timeFmt.format(sched);
 
     const li = document.createElement('li');
     li.dataset.key = key;
     li.dataset.cd = cdText;
-    li.dataset.tm = tmText;
 
     const badge = el('span', `line-badge small mode-${st.mode.toLowerCase()}`,
       shortLine(st));
@@ -143,14 +139,13 @@ function renderBoard(board) {
     if (board.showTrack && st.place.track) {
       li.append(el('span', 'dep-track', `spoor ${st.place.track}`));
     }
-    const time = el('span', 'dep-time', '');
-    time.append(flap(tmText, key in prevTm && prevTm[key] !== tmText));
-    li.append(time);
+    li.append(el('span', 'dep-time', timeFmt.format(sched)));
     if (delayMin > 0) li.append(el('span', 'dep-delay', `+${delayMin}`));
 
     const countdown = el('span', 'dep-countdown', '');
     if (st.realTime) countdown.append(el('span', 'rt-dot', ''));
-    countdown.append(flap(cdText, key in prevCd && prevCd[key] !== cdText));
+    const oldCd = key in prevCd ? prevCd[key] : null;
+    countdown.append(countdownFlap(cdText, oldCd));
     li.append(countdown);
     list.append(li);
   }
@@ -550,30 +545,100 @@ function el(tag, className, text) {
   return node;
 }
 
-// Split-flap cell: bottom half holds the full text (and is read by screen
-// readers); the top half overlays it and folds down when `animate` is set.
-function flap(text, animate) {
-  const wrap = el('span', 'flap', '');
-  wrap.append(el('span', 'flap-bottom', text));
-  const top = el('span', 'flap-top', text);
-  top.setAttribute('aria-hidden', 'true');
-  wrap.append(top);
-  if (animate) wrap.classList.add('flip');
-  return wrap;
+// ---- Countdown split-flap (per character) -------------------------------
+// Build a row of little cards for a countdown like "10 min". Each digit and
+// the label is its own card; the number is right-aligned in >=2 slots so the
+// tens digit appears/disappears in place (10 -> 9 peels the leading "1").
+function countdownCells(text) {
+  if (text === 'nu') {
+    return [{ type: 'blank', char: '' }, { type: 'blank', char: '' }, { type: 'label', char: 'nu' }];
+  }
+  const m = text.match(/^(\d+)\s+(\D+)$/);
+  if (!m) return [{ type: 'label', char: text }];
+  const digits = m[1];
+  const slots = Math.max(2, digits.length);
+  const cells = [...digits.padStart(slots, ' ')].map((ch) =>
+    ch === ' ' ? { type: 'blank', char: '' } : { type: 'digit', char: ch });
+  cells.push({ type: 'label', char: m[2] });
+  return cells;
 }
 
-// Replay the brand tile flip (on load and manual refresh only — not the
-// 30s auto-refresh, which would be distracting).
-function replayLogoFlip() {
-  const board = document.querySelector('.brand-board');
-  if (!board) return;
-  board.classList.remove('flip');
-  void board.offsetWidth; // force reflow so the animation restarts
-  board.classList.add('flip');
+function countdownFlap(newText, oldText) {
+  const row = el('span', 'cd-flap', '');
+  row.setAttribute('aria-label', newText);
+  row.setAttribute('role', 'text');
+  const nCells = countdownCells(newText);
+  const oCells = oldText != null ? countdownCells(oldText) : null;
+  const n = nCells.length;
+  for (let i = 0; i < n; i++) {
+    let oldChar = null;
+    if (oCells) {
+      const ri = n - 1 - i;                       // index from the right
+      const o = oCells[oCells.length - 1 - ri];   // aligned right-to-left
+      oldChar = o ? o.char : '';                  // nothing there before -> appears
+    }
+    row.append(flapCell(nCells[i], oldChar));
+  }
+  return row;
+}
+
+function flapCell(cell, oldChar) {
+  const node = el('span', `cell cell-${cell.type}${cell.char === '' ? ' blank' : ''}`, '');
+  node.setAttribute('aria-hidden', 'true');
+  node.append(el('span', 'cf cf-bottom', cell.char));
+  const top = el('span', 'cf cf-top', cell.char);
+  node.append(top);
+  if (oldChar != null && oldChar !== cell.char) {
+    if (oldChar === '') {
+      top.classList.add('drop');                  // glyph arriving: drop in
+    } else {
+      const fall = el('span', 'cf cf-fall', oldChar); // glyph leaving: peel down
+      node.append(fall);
+      fall.addEventListener('animationend', () => fall.remove());
+    }
+  }
+  return node;
+}
+
+// ---- Brand tile alphabet spin -------------------------------------------
+// On load / manual refresh each tile starts at "A" and flaps through the
+// alphabet to its target letter. All tiles flip at the same rate, so B (1
+// step) lands first, C (2) second, and P (15 steps) takes ~0.5s.
+const SPIN_STEP_MS = 33; // 15 steps (A->P) ~= 0.5s
+
+function setTileGlyph(tile, ch) {
+  tile.querySelector('.tile-bottom').textContent = ch;
+  tile.querySelector('.tile-top').textContent = ch;
+}
+
+function spinTile(tile) {
+  const target = (tile.dataset.letter || 'A').toUpperCase().charCodeAt(0);
+  let code = 'A'.charCodeAt(0);
+  setTileGlyph(tile, 'A');
+  if (target <= code) { setTileGlyph(tile, String.fromCharCode(target)); return; }
+  const id = setInterval(() => {
+    const oldCh = String.fromCharCode(code);
+    code += 1;
+    setTileGlyph(tile, String.fromCharCode(code));
+    tile.querySelectorAll('.tile-fall').forEach((f) => f.remove());
+    const fall = el('span', 'tile-half tile-fall', oldCh);
+    fall.setAttribute('aria-hidden', 'true');
+    tile.append(fall);
+    fall.addEventListener('animationend', () => fall.remove());
+    if (code >= target) clearInterval(id);
+  }, SPIN_STEP_MS);
+}
+
+function spinBrandTiles() {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelectorAll('.brand .tile').forEach((tile) => {
+    if (reduce) { setTileGlyph(tile, (tile.dataset.letter || '').toUpperCase()); return; }
+    spinTile(tile);
+  });
 }
 
 $('refresh-btn').addEventListener('click', () => {
-  replayLogoFlip();
+  spinBrandTiles();
   refreshBoards();
 });
 
@@ -597,7 +662,7 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
 }
 
-replayLogoFlip();
+spinBrandTiles();
 refreshBoards();
 startAutoRefresh();
 renderRecents();

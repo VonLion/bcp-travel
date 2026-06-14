@@ -21,6 +21,10 @@
   --board-frame: #3a3960;
   --board-text: #f5f5fa;
   --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  /* Countdown flap cards */
+  --cd-card: #eceef5;
+  --cd-border: #d7d9e6;
+  --cd-seam: rgba(0, 0, 0, 0.10);
   --radius: 16px;
 }
 
@@ -33,6 +37,9 @@
     --accent: #6b93ff;
     --accent-soft: #22284a;
     --border: #2e2e40;
+    --cd-card: #2a2a3e;
+    --cd-border: #3a3a52;
+    --cd-seam: rgba(0, 0, 0, 0.45);
   }
 }
 
@@ -114,6 +121,20 @@ header {
   z-index: 1;
 }
 
+/* The leaving glyph's top half, peeling down over the new one (set per
+   spin step in JS). */
+.brand .tile-fall {
+  clip-path: inset(0 0 50% 0);
+  transform-origin: 50% 50%;
+  z-index: 3;
+  background: var(--board-tile);
+  color: var(--amber);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .brand .tile-fall { animation: flap-peel 0.13s linear both; }
+}
+
 /* Flip-board fold seam */
 .brand .tile::after {
   content: "";
@@ -150,18 +171,18 @@ header {
 #refresh-btn.spinning { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Split-flap fold: the top half drops onto the seam. Used by the brand
-   tiles (on load / manual refresh) and the departure flap cells (on change). */
-@media (prefers-reduced-motion: no-preference) {
-  .brand-board.flip .tile-top {
-    animation: flap-fold 0.5s cubic-bezier(0.3, 0.75, 0.45, 1) both;
-    animation-delay: calc(var(--i) * 0.11s);
-  }
+/* Split-flap falling motion.
+   flap-peel: the OLD glyph's top half is hinged at the seam and falls
+   forward + down toward the viewer, revealing the new glyph behind it.
+   flap-drop: a NEW glyph's top half drops in from standing upright. */
+@keyframes flap-peel {
+  0%   { transform: rotateX(0deg); }
+  100% { transform: rotateX(-90deg); }
 }
 
-@keyframes flap-fold {
-  0%   { transform: rotateX(-90deg); }
-  70%  { transform: rotateX(7deg); }
+@keyframes flap-drop {
+  0%   { transform: rotateX(90deg); }
+  60%  { transform: rotateX(-6deg); }
   100% { transform: rotateX(0deg); }
 }
 
@@ -285,6 +306,7 @@ ul.departures li {
 
 .dep-headsign {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -336,37 +358,87 @@ ul.departures li {
 }
 
 .dep-countdown {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 64px;
+  align-self: center;
+}
+
+/* Countdown split-flap: each digit and the label is its own little card.
+   On change only the affected cells animate — a leaving glyph peels down,
+   an arriving glyph drops in. */
+.cd-flap {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 2px;
+  perspective: 200px;
+}
+
+.cd-flap .cell {
+  position: relative;
+  min-width: 13px;
+  height: 19px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.cd-flap .cell-digit,
+.cd-flap .cell-label {
+  border: 1px solid var(--cd-border);
+  background: var(--cd-card);
+}
+
+.cd-flap .cell-label { min-width: 32px; }
+
+.cd-flap .cell.blank { background: transparent; border-color: transparent; }
+
+.cd-flap .cf {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-family: var(--mono);
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  min-width: 56px;
-  text-align: right;
-}
-
-/* Split-flap cell: a glyph string split at its centre seam. The bottom half
-   sits in flow (and carries the full text for screen readers); the top half
-   overlays it and folds down on change. */
-.flap {
-  position: relative;
-  display: inline-block;
-  line-height: 1.05;
-}
-
-.flap-bottom { clip-path: inset(50% 0 0 0); }
-
-.flap-top {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  text-align: inherit;
-  clip-path: inset(0 0 50% 0);
-  transform-origin: 50% 50%;     /* hinge on the seam */
+  font-size: 13px;
+  color: var(--text);
   backface-visibility: hidden;
 }
 
+.cd-flap .cf-bottom { clip-path: inset(50% 0 0 0); }
+
+.cd-flap .cf-top {
+  clip-path: inset(0 0 50% 0);
+  transform-origin: 50% 50%;
+  z-index: 1;
+}
+
+.cd-flap .cf-fall {
+  clip-path: inset(0 0 50% 0);
+  transform-origin: 50% 50%;
+  z-index: 3;
+  background: var(--cd-card);
+}
+
+/* Fold seam across each card */
+.cd-flap .cell::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--cd-seam);
+  z-index: 2;
+}
+
+.cd-flap .cell.blank::after { display: none; }
+
 @media (prefers-reduced-motion: no-preference) {
-  .flap.flip .flap-top { animation: flap-fold 0.5s cubic-bezier(0.3, 0.75, 0.45, 1) both; }
+  .cd-flap .cf-fall { animation: flap-peel 0.45s cubic-bezier(0.4, 0.15, 0.3, 1) both; }
+  .cd-flap .cf-top.drop { animation: flap-drop 0.45s cubic-bezier(0.3, 0.7, 0.45, 1) both; }
 }
 
 .rt-dot {
