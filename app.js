@@ -46,21 +46,21 @@ const BOARDS = [
 const ROUTE_ORIGINS = [
   {
     icon: '🚇',
-    label: 'Metro vanaf Gaasperplas',
+    label: 'Metrostation Gaasperplas',
     place: 'nl-OpenOV_NL:S:30009550',
     coord: '52.311016,4.984585', // for the Google Maps link
     offsetMin: 0,
   },
   {
     icon: '🚌',
-    label: 'Bus vanaf Leerdamhof',
+    label: 'Bushalte Leerdamhof',
     place: 'nl-OpenOV_3980641',
     coord: '52.30539,4.97526',
     offsetMin: 0,
   },
   {
     icon: '🚲',
-    label: 'Vanaf Bijlmer ArenA',
+    label: 'Bijlmer ArenA',
     place: 'nl-OpenOV_NL:S:30000559', // Station Bijlmer ArenA
     coord: '52.311302,4.947578',
     offsetMin: 15,
@@ -395,7 +395,9 @@ function renderItineraries(card, itineraries, origin, dest) {
     const start = new Date(it.startTime);
     const end = new Date(it.endTime);
     times.append(el('span', 'itin-range', `${timeFmt.format(start)} – ${timeFmt.format(end)}`));
-    const transfers = it.transfers === 1 ? '1 overstap' : `${it.transfers} overstappen`;
+    const transfers = it.transfers === 0 ? 'direct'
+      : it.transfers === 1 ? '1 overstap'
+      : `${it.transfers} overstappen`;
     times.append(el('span', 'itin-meta', transfers));
     times.append(el('span', 'itin-duration', formatDuration(it.duration)));
     summary.append(times);

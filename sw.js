@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE = 'ezov-v3';
+const CACHE = 'ezov-v4';
 const SHELL = [
   './',
   './index.html',
