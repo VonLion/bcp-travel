@@ -1,12 +1,14 @@
 'use strict';
 
-const CACHE = 'ezov-v4';
+const CACHE = 'bcp-v5';
 const SHELL = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './manifest.webmanifest',
+  './logo.svg',
+  './icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',

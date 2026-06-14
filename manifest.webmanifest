@@ -1,6 +1,6 @@
 {
-  "name": "ezOV",
-  "short_name": "ezOV",
+  "name": "BCP Travel",
+  "short_name": "BCP",
   "description": "Vertrektijden en routes vanaf huis",
   "start_url": "./",
   "scope": "./",
@@ -8,6 +8,7 @@
   "background_color": "#1c1b33",
   "theme_color": "#1c1b33",
   "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" },
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]

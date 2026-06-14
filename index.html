@@ -3,17 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-  <title>ezOV</title>
+  <title>BCP Travel</title>
   <meta name="description" content="Vertrektijden en routes vanaf huis — Gaasperplas, Leerdamhof, Bijlmer ArenA">
   <meta name="theme-color" content="#1c1b33">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
   <link rel="icon" href="icons/icon-192.png">
   <!-- iOS PWA -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="ezOV">
+  <meta name="apple-mobile-web-app-title" content="BCP">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 </head>
 <body>
@@ -22,7 +23,14 @@
 
   <main id="app">
     <header>
-      <h1>ezOV</h1>
+      <div class="brand" aria-label="BCP Travel">
+        <div class="brand-board">
+          <span class="tile" style="--i:0">B</span>
+          <span class="tile" style="--i:1">C</span>
+          <span class="tile" style="--i:2">P</span>
+        </div>
+        <span class="brand-word">Travel</span>
+      </div>
       <button id="refresh-btn" aria-label="Ververs" title="Ververs">&#8635;</button>
     </header>
 

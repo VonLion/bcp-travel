@@ -1,0 +1,29 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="BCP">
+  <style>
+    .mono { font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+
+  <!-- Board (fills the icon) -->
+  <rect x="0" y="0" width="512" height="512" rx="104" fill="#1c1b33"/>
+
+  <!-- Three flip tiles: B C P -->
+  <rect x="60"  y="156" width="120" height="200" rx="16" fill="#0f0e1f"/>
+  <rect x="196" y="156" width="120" height="200" rx="16" fill="#0f0e1f"/>
+  <rect x="332" y="156" width="120" height="200" rx="16" fill="#0f0e1f"/>
+
+  <!-- Fold seams -->
+  <line x1="60"  y1="256" x2="180" y2="256" stroke="#1c1b33" stroke-width="5"/>
+  <line x1="196" y1="256" x2="316" y2="256" stroke="#1c1b33" stroke-width="5"/>
+  <line x1="332" y1="256" x2="452" y2="256" stroke="#1c1b33" stroke-width="5"/>
+
+  <!-- Letters -->
+  <text class="mono" x="120" y="256" text-anchor="middle" dominant-baseline="central" font-size="120" font-weight="700" fill="#ffc64d">B</text>
+  <text class="mono" x="256" y="256" text-anchor="middle" dominant-baseline="central" font-size="120" font-weight="700" fill="#ffc64d">C</text>
+  <text class="mono" x="392" y="256" text-anchor="middle" dominant-baseline="central" font-size="120" font-weight="700" fill="#ffc64d">P</text>
+
+  <!-- Amber corner accents -->
+  <circle cx="44"  cy="44"  r="9" fill="#ffc64d"/>
+  <circle cx="468" cy="44"  r="9" fill="#ffc64d"/>
+  <circle cx="44"  cy="468" r="9" fill="#ffc64d"/>
+  <circle cx="468" cy="468" r="9" fill="#ffc64d"/>
+</svg>

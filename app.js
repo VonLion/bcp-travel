@@ -112,14 +112,30 @@ function renderBoard(board) {
     shown = within.length >= board.count ? within : all.slice(0, board.count);
   }
 
+  // Remember the previously shown values so we can split-flap only the
+  // cells that actually changed on this render.
+  const prevCd = {};
+  const prevTm = {};
+  list.querySelectorAll('li[data-key]').forEach((li) => {
+    prevCd[li.dataset.key] = li.dataset.cd;
+    prevTm[li.dataset.key] = li.dataset.tm;
+  });
+
   list.innerHTML = '';
   for (const st of shown) {
     const dep = new Date(st.place.departure);
     const sched = new Date(st.place.scheduledDeparture);
     const mins = Math.max(0, Math.round((dep - now) / 60000));
     const delayMin = Math.round((dep - sched) / 60000);
+    const key = st.tripId || `${st.routeShortName}-${st.place.scheduledDeparture}`;
+    const cdText = mins === 0 ? 'nu' : `${mins} min`;
+    const tmText = timeFmt.format(sched);
 
     const li = document.createElement('li');
+    li.dataset.key = key;
+    li.dataset.cd = cdText;
+    li.dataset.tm = tmText;
+
     const badge = el('span', `line-badge small mode-${st.mode.toLowerCase()}`,
       shortLine(st));
     const headsign = el('span', 'dep-headsign', st.headsign || '');
@@ -127,12 +143,15 @@ function renderBoard(board) {
     if (board.showTrack && st.place.track) {
       li.append(el('span', 'dep-track', `spoor ${st.place.track}`));
     }
-    li.append(el('span', 'dep-time', timeFmt.format(sched)));
+    const time = el('span', 'dep-time', tmText);
+    if (key in prevTm && prevTm[key] !== tmText) time.classList.add('flip');
+    li.append(time);
     if (delayMin > 0) li.append(el('span', 'dep-delay', `+${delayMin}`));
 
     const countdown = el('span', 'dep-countdown', '');
+    if (key in prevCd && prevCd[key] !== cdText) countdown.classList.add('flip');
     if (st.realTime) countdown.append(el('span', 'rt-dot', ''));
-    countdown.append(document.createTextNode(mins === 0 ? 'nu' : `${mins} min`));
+    countdown.append(document.createTextNode(cdText));
     li.append(countdown);
     list.append(li);
   }
@@ -532,7 +551,20 @@ function el(tag, className, text) {
   return node;
 }
 
-$('refresh-btn').addEventListener('click', refreshBoards);
+// Replay the brand tile flip (on load and manual refresh only — not the
+// 30s auto-refresh, which would be distracting).
+function replayLogoFlip() {
+  const board = document.querySelector('.brand-board');
+  if (!board) return;
+  board.classList.remove('flip');
+  void board.offsetWidth; // force reflow so the animation restarts
+  board.classList.add('flip');
+}
+
+$('refresh-btn').addEventListener('click', () => {
+  replayLogoFlip();
+  refreshBoards();
+});
 
 // Expand/collapse toggles (train board's "Volgend uur").
 for (const board of BOARDS) {
@@ -554,6 +586,7 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
 }
 
+replayLogoFlip();
 refreshBoards();
 startAutoRefresh();
 renderRecents();

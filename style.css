@@ -3,8 +3,8 @@
   --card: #ffffff;
   --text: #1c1c2e;
   --text-dim: #70707f;
-  --accent: #4338ca;
-  --accent-soft: #eef0ff;
+  --accent: #3a6df0;          /* board-blue */
+  --accent-soft: #e7edfe;
   --border: #e4e4ec;
   --green: #16a34a;
   --red: #dc2626;
@@ -13,6 +13,14 @@
   --rail: #ffc917;
   --rail-text: #1c1c2e;
   --tram: #0d9488;
+  /* Departure-board palette (brand) */
+  --board: #1c1b33;
+  --board-tile: #0f0e1f;
+  --board-seam: #1c1b33;
+  --amber: #ffc64d;
+  --board-frame: #3a3960;
+  --board-text: #f5f5fa;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
   --radius: 16px;
 }
 
@@ -22,8 +30,8 @@
     --card: #1e1e2c;
     --text: #ececf2;
     --text-dim: #9595a6;
-    --accent: #818cf8;
-    --accent-soft: #28284a;
+    --accent: #6b93ff;
+    --accent-soft: #22284a;
     --border: #2e2e40;
   }
 }
@@ -49,36 +57,97 @@ body {
   padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 32px);
 }
 
+/* Dark "departure board" header bar */
 header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 2px 14px;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: var(--board);
+  border: 1px solid var(--board-frame);
+  border-radius: var(--radius);
 }
 
-header h1 {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 800;
+/* Brand lockup: [B][C][P] Travel */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-board {
+  display: flex;
+  gap: 5px;
+  perspective: 240px;
+}
+
+.brand .tile {
+  position: relative;
+  width: 26px;
+  height: 34px;
+  border-radius: 6px;
+  background: var(--board-tile);
+  color: var(--amber);
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 21px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+  backface-visibility: hidden;
+}
+
+/* Flip-board fold seam */
+.brand .tile::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--board);
+}
+
+.brand-word {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 22px;
   letter-spacing: -0.5px;
+  color: var(--board-text);
 }
-
-header h1::first-letter { color: var(--accent); }
 
 #refresh-btn {
-  background: var(--card);
-  border: 1px solid var(--border);
-  color: var(--accent);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--board-frame);
+  color: var(--amber);
   font-size: 20px;
   width: 40px;
   height: 40px;
   border-radius: 50%;
   cursor: pointer;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 #refresh-btn.spinning { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Tile flip-in (on load and on manual refresh) */
+@media (prefers-reduced-motion: no-preference) {
+  .brand-board.flip .tile {
+    animation: tile-flip 0.55s cubic-bezier(0.3, 0.7, 0.4, 1) both;
+    animation-delay: calc(var(--i) * 0.09s);
+  }
+}
+
+@keyframes tile-flip {
+  0%   { transform: rotateX(-90deg); opacity: 0; }
+  55%  { transform: rotateX(12deg);  opacity: 1; }
+  100% { transform: rotateX(0deg); }
+}
 
 /* Solid-to-transparent fade behind the iOS status bar (black-translucent),
    so the system clock stays legible over scrolled content. */
@@ -195,6 +264,7 @@ ul.departures li {
   padding: 8px 0;
   border-top: 1px solid var(--border);
   font-size: 15px;
+  perspective: 220px;
 }
 
 .dep-headsign {
@@ -206,8 +276,9 @@ ul.departures li {
 
 .dep-time {
   color: var(--text-dim);
+  font-family: var(--mono);
   font-variant-numeric: tabular-nums;
-  font-size: 13.5px;
+  font-size: 13px;
 }
 
 .dep-delay { color: var(--red); font-size: 13.5px; font-weight: 600; }
@@ -249,10 +320,26 @@ ul.departures li {
 }
 
 .dep-countdown {
+  font-family: var(--mono);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  min-width: 52px;
+  min-width: 56px;
   text-align: right;
+  transform-origin: center;
+  backface-visibility: hidden;
+}
+
+/* Split-flap: replay when the displayed value changes (set in JS). */
+@media (prefers-reduced-motion: no-preference) {
+  .dep-countdown.flip, .dep-time.flip {
+    animation: split-flap 0.5s cubic-bezier(0.3, 0.7, 0.4, 1) both;
+  }
+}
+
+@keyframes split-flap {
+  0%   { transform: rotateX(-90deg); opacity: 0.25; }
+  60%  { transform: rotateX(10deg);  opacity: 1; }
+  100% { transform: rotateX(0deg); }
 }
 
 .rt-dot {
