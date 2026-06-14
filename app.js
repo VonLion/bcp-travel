@@ -143,15 +143,14 @@ function renderBoard(board) {
     if (board.showTrack && st.place.track) {
       li.append(el('span', 'dep-track', `spoor ${st.place.track}`));
     }
-    const time = el('span', 'dep-time', tmText);
-    if (key in prevTm && prevTm[key] !== tmText) time.classList.add('flip');
+    const time = el('span', 'dep-time', '');
+    time.append(flap(tmText, key in prevTm && prevTm[key] !== tmText));
     li.append(time);
     if (delayMin > 0) li.append(el('span', 'dep-delay', `+${delayMin}`));
 
     const countdown = el('span', 'dep-countdown', '');
-    if (key in prevCd && prevCd[key] !== cdText) countdown.classList.add('flip');
     if (st.realTime) countdown.append(el('span', 'rt-dot', ''));
-    countdown.append(document.createTextNode(cdText));
+    countdown.append(flap(cdText, key in prevCd && prevCd[key] !== cdText));
     li.append(countdown);
     list.append(li);
   }
@@ -549,6 +548,18 @@ function el(tag, className, text) {
   if (className) node.className = className;
   if (text) node.textContent = text;
   return node;
+}
+
+// Split-flap cell: bottom half holds the full text (and is read by screen
+// readers); the top half overlays it and folds down when `animate` is set.
+function flap(text, animate) {
+  const wrap = el('span', 'flap', '');
+  wrap.append(el('span', 'flap-bottom', text));
+  const top = el('span', 'flap-top', text);
+  top.setAttribute('aria-hidden', 'true');
+  wrap.append(top);
+  if (animate) wrap.classList.add('flip');
+  return wrap;
 }
 
 // Replay the brand tile flip (on load and manual refresh only — not the

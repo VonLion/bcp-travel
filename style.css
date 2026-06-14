@@ -93,11 +93,25 @@ header {
   font-family: var(--mono);
   font-weight: 700;
   font-size: 21px;
+  overflow: hidden;
+}
+
+/* Two halves of the same glyph, clipped at the seam. */
+.brand .tile-half {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  transform-origin: center;
   backface-visibility: hidden;
+}
+
+.brand .tile-bottom { clip-path: inset(50% 0 0 0); }
+
+.brand .tile-top {
+  clip-path: inset(0 0 50% 0);
+  transform-origin: 50% 50%;     /* hinge on the center seam */
+  z-index: 1;
 }
 
 /* Flip-board fold seam */
@@ -109,6 +123,7 @@ header {
   top: 50%;
   height: 1px;
   background: var(--board);
+  z-index: 2;
 }
 
 .brand-word {
@@ -135,17 +150,18 @@ header {
 #refresh-btn.spinning { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Tile flip-in (on load and on manual refresh) */
+/* Split-flap fold: the top half drops onto the seam. Used by the brand
+   tiles (on load / manual refresh) and the departure flap cells (on change). */
 @media (prefers-reduced-motion: no-preference) {
-  .brand-board.flip .tile {
-    animation: tile-flip 0.55s cubic-bezier(0.3, 0.7, 0.4, 1) both;
-    animation-delay: calc(var(--i) * 0.09s);
+  .brand-board.flip .tile-top {
+    animation: flap-fold 0.5s cubic-bezier(0.3, 0.75, 0.45, 1) both;
+    animation-delay: calc(var(--i) * 0.11s);
   }
 }
 
-@keyframes tile-flip {
-  0%   { transform: rotateX(-90deg); opacity: 0; }
-  55%  { transform: rotateX(12deg);  opacity: 1; }
+@keyframes flap-fold {
+  0%   { transform: rotateX(-90deg); }
+  70%  { transform: rotateX(7deg); }
   100% { transform: rotateX(0deg); }
 }
 
@@ -325,21 +341,32 @@ ul.departures li {
   font-variant-numeric: tabular-nums;
   min-width: 56px;
   text-align: right;
-  transform-origin: center;
+}
+
+/* Split-flap cell: a glyph string split at its centre seam. The bottom half
+   sits in flow (and carries the full text for screen readers); the top half
+   overlays it and folds down on change. */
+.flap {
+  position: relative;
+  display: inline-block;
+  line-height: 1.05;
+}
+
+.flap-bottom { clip-path: inset(50% 0 0 0); }
+
+.flap-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  text-align: inherit;
+  clip-path: inset(0 0 50% 0);
+  transform-origin: 50% 50%;     /* hinge on the seam */
   backface-visibility: hidden;
 }
 
-/* Split-flap: replay when the displayed value changes (set in JS). */
 @media (prefers-reduced-motion: no-preference) {
-  .dep-countdown.flip, .dep-time.flip {
-    animation: split-flap 0.5s cubic-bezier(0.3, 0.7, 0.4, 1) both;
-  }
-}
-
-@keyframes split-flap {
-  0%   { transform: rotateX(-90deg); opacity: 0.25; }
-  60%  { transform: rotateX(10deg);  opacity: 1; }
-  100% { transform: rotateX(0deg); }
+  .flap.flip .flap-top { animation: flap-fold 0.5s cubic-bezier(0.3, 0.75, 0.45, 1) both; }
 }
 
 .rt-dot {
