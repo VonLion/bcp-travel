@@ -270,6 +270,7 @@ let geocodeAbort = null;
 
 input.addEventListener('input', () => {
   $('clear-btn').hidden = input.value.length === 0;
+  if (input.value.length > 0) hideGhost();
   clearTimeout(debounceTimer);
   const q = input.value.trim();
   if (q.length < 2) {
@@ -355,27 +356,55 @@ function spinRowTo(flap, str) {
 
 function stopRow(flap) { flap.cells.forEach((c) => clearInterval(c.timer)); }
 
-// ---- Search placeholder board ------------------------------------------
+// Lay a string across `rows` board lines of `cols`, breaking at spaces and
+// (failing that) after a hyphen, like text wrapping on a real flip-board.
+function wrapToBoard(text, cols, rows) {
+  const words = text.toUpperCase().split(/\s+/);
+  const lines = [];
+  let cur = '';
+  for (let w of words) {
+    while (w.length > cols) {
+      const hy = w.lastIndexOf('-', cols - 1);
+      const cut = hy >= 3 ? hy + 1 : cols; // prefer breaking after a hyphen
+      if (cur) { lines.push(cur); cur = ''; }
+      lines.push(w.slice(0, cut));
+      w = w.slice(cut);
+    }
+    if (!cur) cur = w;
+    else if (`${cur} ${w}`.length <= cols) cur += ` ${w}`;
+    else { lines.push(cur); cur = w; }
+  }
+  if (cur) lines.push(cur);
+  return Array.from({ length: rows }, (_, i) => (lines[i] || '').slice(0, cols));
+}
+
+// ---- Search placeholder: a two-row split-flap board --------------------
 const ghost = $('ghost');
-const PLACEHOLDERS = ['Where to?', ...QUICK_DESTINATIONS.map((d) => d.label)]
-  .map((s) => s.toUpperCase());
-const FLAP_COLS = Math.max(...PLACEHOLDERS.map((s) => s.length));
-let ghostFlap = null;
+const GHOST_COLS = 12;
+const GHOST_ROWS = 2;
+const PLACEHOLDERS = ['Where to?', ...QUICK_DESTINATIONS.map((d) => d.label)];
+let ghostBoard = null;
 let ghostTimer = null;
 let ghostIdx = 0;
 
+function spinGhost(text) {
+  const lines = wrapToBoard(text, GHOST_COLS, GHOST_ROWS);
+  ghostBoard.forEach((row, i) => spinRowTo(row, lines[i]));
+}
+
 function startGhost() {
-  if (!ghostFlap) {
-    ghostFlap = makeFlapRow(FLAP_COLS);
-    ghost.append(ghostFlap.row);
+  if (!ghostBoard) {
+    ghostBoard = Array.from({ length: GHOST_ROWS },
+      () => makeFlapRow(GHOST_COLS, 'flaprow-display'));
+    ghostBoard.forEach((row) => ghost.append(row.row));
   }
   clearInterval(ghostTimer);
-  stopRow(ghostFlap);
+  ghostBoard.forEach(stopRow);
   ghostIdx = 0;
-  spinRowTo(ghostFlap, PLACEHOLDERS[0]);
+  spinGhost(PLACEHOLDERS[0]);
   ghostTimer = setInterval(() => {
     ghostIdx = (ghostIdx + 1) % PLACEHOLDERS.length;
-    spinRowTo(ghostFlap, PLACEHOLDERS[ghostIdx]);
+    spinGhost(PLACEHOLDERS[ghostIdx]);
   }, 3600);
 }
 
@@ -387,7 +416,7 @@ function showGhost() {
 function hideGhost() {
   ghost.classList.add('hidden');
   clearInterval(ghostTimer);
-  if (ghostFlap) stopRow(ghostFlap);
+  if (ghostBoard) ghostBoard.forEach(stopRow);
 }
 
 // Results title rendered as a flap board that spins in from blanks.
@@ -415,8 +444,7 @@ function renderQuick() {
   const wrap = $('quick-chips');
   wrap.innerHTML = '';
   for (const d of QUICK_DESTINATIONS) {
-    const chip = el('button', 'chip quick', '');
-    chip.append(el('span', 'chip-pin', ''), document.createTextNode(d.label));
+    const chip = el('button', 'chip quick', d.label);
     chip.addEventListener('click', () => selectQuick(d));
     wrap.append(chip);
   }

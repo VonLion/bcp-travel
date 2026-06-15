@@ -576,10 +576,11 @@ ul.departures li {
 
 #dest-input {
   width: 100%;
-  padding: 14px 44px 14px 46px;
+  min-height: 64px;
+  padding: 8px 44px 8px 12px;
   font-size: 17px;
   border: 1.5px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 4px;
   background: var(--card);
   color: var(--text);
   outline: none;
@@ -587,35 +588,17 @@ ul.departures li {
 
 #dest-input:focus { border-color: var(--accent); }
 
-/* Bobbing yellow location pin */
-.search-pin {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 22px;
-  height: 22px;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.search-pin svg { width: 100%; height: 100%; display: block; }
-
-.search-pin { animation: pin-bob 2.4s ease-in-out infinite; }
-
-@keyframes pin-bob {
-  50% { transform: translateY(-58%); }
-}
-
-/* Split-flap placeholder board, overlaid on the empty input */
+/* Split-flap placeholder: a two-row board filling the input width */
 #ghost {
   position: absolute;
-  left: 46px;
+  left: 12px;
   right: 12px;
   top: 0;
   bottom: 0;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
   pointer-events: none;
   overflow: hidden;
 }
@@ -687,23 +670,18 @@ ul.departures li {
 .flaprow-title .fcell { width: 15px; height: 24px; border-radius: 3px; }
 .flaprow-title .cf { font-size: 15px; }
 
+/* Two-row placeholder board: bigger cells, full width */
+.flaprow-display { gap: 1px; }
+.flaprow-display .fcell { width: 21px; height: 28px; border-radius: 2px; }
+.flaprow-display .cf { font-size: 18px; }
+
 /* Quick-pick destinations */
 #quick { margin-top: 12px; }
 
 #quick-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-}
-
-.chip.quick .chip-pin {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--amber);
-  margin-right: 6px;
-  vertical-align: 1px;
+  gap: 7px;
 }
 
 #clear-btn {
@@ -786,11 +764,11 @@ ul.departures li {
   position: relative;
   overflow: hidden;
   border: 1px solid #000;
-  border-radius: 5px;
-  padding: 7px 12px;
+  border-radius: 4px;
+  padding: 5px 9px;
   font-family: var(--mono);
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--amber);
   cursor: pointer;
   max-width: 100%;
