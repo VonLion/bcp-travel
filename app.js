@@ -269,7 +269,6 @@ let debounceTimer = null;
 let geocodeAbort = null;
 
 input.addEventListener('input', () => {
-  $('clear-btn').hidden = input.value.length === 0;
   if (input.value.length > 0) hideGhost();
   clearTimeout(debounceTimer);
   const q = input.value.trim();
@@ -293,16 +292,6 @@ input.addEventListener('blur', () => {
 
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.search-wrap')) hideSuggestions();
-});
-
-$('clear-btn').addEventListener('click', () => {
-  currentDest = null;
-  input.value = '';
-  $('clear-btn').hidden = true;
-  hideSuggestions();
-  $('routes').hidden = true;
-  showIdle();
-  input.focus();
 });
 
 // ---- Shared split-flap character row -----------------------------------
@@ -350,8 +339,13 @@ function spinCellTo(cell, target) {
   }, FLAP_STEP_MS);
 }
 
+// Flip boards have no accented flaps, so fold diacritics away (ë -> E).
+function boardText(s) {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+}
+
 function spinRowTo(flap, str) {
-  const s = str.toUpperCase().slice(0, flap.cells.length);
+  const s = boardText(str).slice(0, flap.cells.length);
   flap.cells.forEach((cell, i) => spinCellTo(cell, s[i] || ' '));
 }
 
@@ -363,7 +357,7 @@ function wrapToBoard(text, cols, rows) {
   // Break opportunities: between words (with a space) and after a hyphen
   // (without a space), like real text wrapping.
   const segs = [];
-  text.toUpperCase().split(/\s+/).forEach((word, wi) => {
+  boardText(text).split(/\s+/).forEach((word, wi) => {
     (word.match(/[^-]*-|[^-]+/g) || [word]).forEach((piece, pi) => {
       segs.push({ text: piece, space: pi === 0 && wi > 0 });
     });
@@ -385,11 +379,12 @@ function wrapToBoard(text, cols, rows) {
   return Array.from({ length: rows }, (_, i) => (lines[i] || '').slice(0, cols));
 }
 
-// ---- Search placeholder: a two-row split-flap board --------------------
+// ---- Search board: "Where to?" on top, destinations below --------------
+// Three rows: row 0 is a fixed "Where to?" header; rows 1-2 hold the chosen
+// destination, or scroll through the suggestions when idle.
 const ghost = $('ghost');
 const GHOST_COLS = 12;
-const GHOST_ROWS = 2;
-const PLACEHOLDERS = ['Where to?', ...QUICK_DESTINATIONS.map((d) => d.label)];
+const DESTINATIONS = QUICK_DESTINATIONS.map((d) => d.label);
 let ghostBoard = null;
 let ghostTimer = null;
 let ghostIdx = 0;
@@ -397,34 +392,34 @@ let currentDest = null;
 
 function ensureGhost() {
   if (ghostBoard) return;
-  ghostBoard = Array.from({ length: GHOST_ROWS },
+  ghostBoard = Array.from({ length: 3 },
     () => makeFlapRow(GHOST_COLS, 'flaprow-display'));
   ghostBoard.forEach((row) => ghost.append(row.row));
 }
 
-function spinGhost(text) {
-  ensureGhost();
-  const lines = wrapToBoard(text, GHOST_COLS, GHOST_ROWS);
-  ghostBoard.forEach((row, i) => spinRowTo(row, lines[i]));
+// Spin the lower two rows to `text` (word-wrapped); the top row stays put.
+function spinGhostBody(text) {
+  const lines = wrapToBoard(text, GHOST_COLS, 2);
+  spinRowTo(ghostBoard[1], lines[0]);
+  spinRowTo(ghostBoard[2], lines[1]);
 }
 
-// The board holds the chosen destination ("Naar X") when one is selected,
-// otherwise it cycles through the suggestions. Same board either way — no
-// separate title.
 function showGhost() {
   ensureGhost();
   ghost.classList.remove('hidden');
   clearInterval(ghostTimer);
-  ghostBoard.forEach(stopRow);
+  stopRow(ghostBoard[1]);
+  stopRow(ghostBoard[2]);
+  spinRowTo(ghostBoard[0], 'Where to?');   // fixed header (no-op once set)
   if (currentDest) {
-    spinGhost(`Naar ${currentDest.name}`);
+    spinGhostBody(currentDest.name);
     return;
   }
   ghostIdx = 0;
-  spinGhost(PLACEHOLDERS[0]);
+  spinGhostBody(DESTINATIONS[0]);
   ghostTimer = setInterval(() => {
-    ghostIdx = (ghostIdx + 1) % PLACEHOLDERS.length;
-    spinGhost(PLACEHOLDERS[ghostIdx]);
+    ghostIdx = (ghostIdx + 1) % DESTINATIONS.length;
+    spinGhostBody(DESTINATIONS[ghostIdx]);
   }, 3600);
 }
 
@@ -459,9 +454,8 @@ async function selectQuick(d) {
   hideSuggestions();
   hideIdle();
   input.value = '';
-  $('clear-btn').hidden = false;
   input.blur();
-  currentDest = { name: d.label };   // flap the board to "Naar X" right away
+  currentDest = { name: d.label };   // show on the board right away
   showGhost();
   try {
     const dest = await geocodeAddress(d.address);
@@ -591,12 +585,11 @@ function renderRecents() {
 function selectDestination(dest) {
   currentDest = dest;
   input.value = '';
-  $('clear-btn').hidden = false;
   hideSuggestions();
   hideIdle();
   saveRecent(dest);
   input.blur();
-  showGhost();        // board flaps to "Naar X"
+  showGhost();        // board shows the destination below "Where to?"
   planRoutes(dest);
 }
 

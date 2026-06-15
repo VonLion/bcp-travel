@@ -576,8 +576,8 @@ ul.departures li {
 
 #dest-input {
   width: 100%;
-  min-height: 70px;
-  padding: 8px 44px 8px 12px;
+  min-height: 98px;
+  padding: 8px 12px;
   font-size: 17px;
   border: 1.5px solid var(--border);
   border-radius: 4px;
@@ -588,7 +588,7 @@ ul.departures li {
 
 #dest-input:focus { border-color: var(--accent); }
 
-/* Split-flap placeholder: a two-row board filling the input width */
+/* Split-flap board filling the input width (3 rows) */
 #ghost {
   position: absolute;
   left: 12px;
@@ -598,7 +598,7 @@ ul.departures li {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
   pointer-events: none;
   overflow: hidden;
 }
@@ -683,11 +683,11 @@ ul.departures li {
   flex: 1 1 0;
   min-width: 0;
   width: auto;
-  height: 30px;
+  height: 26px;
   border-radius: 2px;
 }
 
-.flaprow-display .cf { font-size: clamp(13px, 5.4cqw, 22px); }
+.flaprow-display .cf { font-size: clamp(12px, 5cqw, 20px); }
 
 /* Quick-pick destinations */
 #quick { margin-top: 12px; }
@@ -696,22 +696,6 @@ ul.departures li {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
-}
-
-#clear-btn {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 30px;
-  height: 30px;
-  border: none;
-  border-radius: 50%;
-  background: var(--border);
-  color: var(--text-dim);
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
 }
 
 #suggestions {
