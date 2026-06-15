@@ -103,11 +103,13 @@ function modeIcon(type) {
 const QUICK_DESTINATIONS = [
   { label: 'Oma',               address: 'Eerste Jan Steenstraat, Amsterdam' },
   { label: 'Boze-Zwaanmuseum',  address: 'Museumstraat 1, Amsterdam' },
-  { label: 'Opa Boot',          address: 'Amstel, Amsterdam' },
+  { label: 'Opa Boot',          address: 'Magere Brug, Amsterdam' },
   { label: 'Cafeetje',          address: 'Pretoriusstraat 15, Amsterdam' },
   { label: 'De Hut',            address: 'Rampweg 10, Renesse' },
   { label: 'Opa & Oma Zeeland', address: 'Rollandhof, Zierikzee' },
   { label: 'Skydive',           address: 'Noodweg 49, Hilversum' },
+  { label: 'Niels & Katinka',   address: 'Roggekamp, Diemen' },
+  { label: 'Robin!',            address: 'Polderland, Diemen' },
 ];
 
 const GEOCODE_BIAS = '52.305,4.975'; // home area, ranks nearby results higher
@@ -297,7 +299,7 @@ document.addEventListener('click', (e) => {
 // ---- Shared split-flap character row -----------------------------------
 // A row of flap cells that spin forward through the drum to spell a string.
 // Used by the search placeholder (cycling) and the results title.
-const DRUM = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789&-?'.";
+const DRUM = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789&-?!:'.";
 const FLAP_STEP_MS = 34;
 
 function makeFlapRow(cols, cls) {
@@ -384,6 +386,7 @@ function wrapToBoard(text, cols, rows) {
 // destination, or scroll through the suggestions when idle.
 const ghost = $('ghost');
 const GHOST_COLS = 12;
+const HEADERS = ['Where to?', 'Waarheen?', 'Bestemming:', 'Op reis naar', 'Destination:'];
 const DESTINATIONS = QUICK_DESTINATIONS.map((d) => d.label);
 let ghostBoard = null;
 let ghostTimer = null;
@@ -408,18 +411,19 @@ function showGhost() {
   ensureGhost();
   ghost.classList.remove('hidden');
   clearInterval(ghostTimer);
-  stopRow(ghostBoard[1]);
-  stopRow(ghostBoard[2]);
-  spinRowTo(ghostBoard[0], 'Where to?');   // fixed header (no-op once set)
+  ghostBoard.forEach(stopRow);
   if (currentDest) {
+    spinRowTo(ghostBoard[0], 'Op reis naar');   // a statement, not a question
     spinGhostBody(currentDest.name);
     return;
   }
   ghostIdx = 0;
-  spinGhostBody(DESTINATIONS[0]);
+  spinRowTo(ghostBoard[0], HEADERS[0]);
+  spinGhostBody(`${DESTINATIONS[0]}?`);
   ghostTimer = setInterval(() => {
-    ghostIdx = (ghostIdx + 1) % DESTINATIONS.length;
-    spinGhostBody(DESTINATIONS[ghostIdx]);
+    ghostIdx += 1;
+    spinRowTo(ghostBoard[0], HEADERS[ghostIdx % HEADERS.length]);
+    spinGhostBody(`${DESTINATIONS[ghostIdx % DESTINATIONS.length]}?`);
   }, 3600);
 }
 
