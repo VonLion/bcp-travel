@@ -30,5 +30,4 @@
 
   <!-- Wordmark (dark-on-light) -->
   <text class="mono" x="340" y="270" text-anchor="middle" font-size="46" font-weight="700" fill="#1c1b33">BCP <tspan fill="#3a6df0">Travel</tspan></text>
-  <text class="mono" x="340" y="304" text-anchor="middle" font-size="15" letter-spacing="3" fill="#6b6a85">BCP</text>
 </svg>
