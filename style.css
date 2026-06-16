@@ -57,23 +57,16 @@ body {
 #app {
   max-width: 560px;
   margin: 0 auto;
-  padding: calc(env(safe-area-inset-top) + 10px) 12px calc(env(safe-area-inset-bottom) + 24px);
+  padding: calc(env(safe-area-inset-top) + 10px) 8px calc(env(safe-area-inset-bottom) + 24px);
 }
 
-/* The machine: brass chassis framing a recessed board */
+/* The machine: a single brass-edged frame around the dark board */
 .chassis {
   position: relative;
-  background: var(--frame);
-  border: 1px solid var(--frame-edge);
-  border-radius: 22px;
-  padding: 14px;
-}
-
-.board-recess {
   background: var(--recess);
-  border: 1px solid #000;
-  border-radius: 12px;
-  padding: 14px 14px 18px;
+  border: 2px solid var(--frame-edge);
+  border-radius: 16px;
+  padding: 9px;
 }
 
 /* Corner screws */
@@ -565,7 +558,7 @@ ul.departures li {
 #dest-input {
   width: 100%;
   min-height: 98px;
-  padding: 8px 12px;
+  padding: 8px 8px;
   font-size: 17px;
   border: 1.5px solid var(--border);
   border-radius: 4px;
@@ -579,8 +572,8 @@ ul.departures li {
 /* Split-flap board filling the input width (3 rows) */
 #ghost {
   position: absolute;
-  left: 12px;
-  right: 12px;
+  left: 6px;
+  right: 6px;
   top: 0;
   bottom: 0;
   display: flex;
