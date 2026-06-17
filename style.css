@@ -22,7 +22,9 @@
   --board-tile: #0f0e1f;
   --board-frame: #4f4636;
   --board-text: #efe6cd;
-  --amber: #ffc24a;          /* warm Solari amber — logo, time flaps */
+  --amber: #ffc24a;          /* warm Solari amber — search rows, time flaps */
+  --logo-amber: #e0ab44;     /* BCP + TRAVEL: a touch dimmer, sits back */
+  --clock-white: #f4f2ec;    /* live logo clock — the one bright element */
   --teal: #14a3a3;
   /* Machine housing */
   --frame: #2c2620;
@@ -102,93 +104,30 @@ body {
 .screw:nth-of-type(3)::after { transform: rotate(71deg); }
 .screw:nth-of-type(4)::after { transform: rotate(-9deg); }
 
-/* Brand header — sits directly on the recess */
-header {
+/* The machine: one panel holding the logo (2 rows) and the search board
+   (3 rows) as a single continuous 5x12 split-flap raster. */
+.machine {
+  position: relative;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 2px;
   margin-bottom: 14px;
-  padding: 2px;
 }
 
-/* Brand lockup: [B][C][P] Travel — also the refresh button */
-.brand {
+.machine:focus-within { border-color: var(--accent); }
+
+/* Logo = top two rows; tapping it reloads (like the old brand lockup). */
+#logo-board {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 2px;
   cursor: pointer;
   -webkit-user-select: none;
   user-select: none;
-}
-
-.brand-board {
-  display: flex;
-  gap: 5px;
-  perspective: 240px;
-}
-
-.brand .tile {
-  position: relative;
-  width: 26px;
-  height: 34px;
-  border-radius: 6px;
-  background: var(--board-tile);
-  color: var(--amber);
-  font-family: var(--mono);
-  font-weight: 700;
-  font-size: 21px;
-  overflow: hidden;
-}
-
-/* Two halves of the same glyph, clipped at the seam. */
-.brand .tile-half {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backface-visibility: hidden;
-}
-
-.brand .tile-bottom { clip-path: inset(50% 0 0 0); }
-
-.brand .tile-top {
-  clip-path: inset(0 0 50% 0);
-  transform-origin: 50% 50%;     /* hinge on the center seam */
-  z-index: 1;
-}
-
-/* The leaving glyph's top half, peeling down over the new one (set per
-   spin step in JS). */
-.brand .tile-fall {
-  clip-path: inset(0 0 50% 0);
-  transform-origin: 50% 50%;
-  z-index: 3;
-  background: var(--board-tile);
-  color: var(--amber);
-}
-
-.brand .tile-fall { animation: flap-peel 0.13s linear both; }
-
-/* Flip-board fold seam */
-.brand .tile::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1px;
-  background: var(--board);
-  z-index: 2;
-}
-
-.brand-word {
-  font-family: var(--mono);
-  font-weight: 700;
-  font-size: 22px;
-  letter-spacing: -0.5px;
-  color: var(--board-text);
 }
 
 
@@ -550,32 +489,28 @@ ul.departures li {
   color: var(--red);
 }
 
-/* ---- Search ---- */
-#search { margin: 18px 0 6px; }
-
-.search-wrap { position: relative; }
+/* ---- Search (rows 3-5 of the machine) ---- */
+/* The search-wrap is exactly three flap rows tall (3*26 + 2*2 gaps); the
+   input is an invisible overlay over it and the ghost board sits on top. */
+.search-wrap { position: relative; height: 82px; }
 
 #dest-input {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  min-height: 98px;
-  padding: 8px 8px;
+  height: 100%;
+  padding: 0 2px;
   font-size: 17px;
-  border: 1.5px solid var(--border);
-  border-radius: 4px;
-  background: var(--card);
+  border: none;
+  background: transparent;
   color: var(--text);
   outline: none;
 }
 
-#dest-input:focus { border-color: var(--accent); }
-
-/* Split-flap board filling the input width (3 rows) */
+/* Split-flap board filling the search-wrap (3 rows) */
 #ghost {
   position: absolute;
-  left: 6px;
-  right: 6px;
-  top: 0;
-  bottom: 0;
+  inset: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -669,6 +604,36 @@ ul.departures li {
 }
 
 .flaprow-display .cf { font-size: clamp(12px, 5cqw, 20px); }
+
+/* ---- Logo rows (BCP quarter-flaps + TRAVEL + clock) ---- */
+/* BCP + TRAVEL sit a touch dimmer than the search rows; the clock is white.
+   (Placed after .flaprow .cf so these win the equal-specificity tie.) */
+.logo-board .cf,
+.logo-board .cf-fall { color: var(--logo-amber); }
+.logo-board .clock-cell .cf,
+.logo-board .clock-cell .cf-fall { color: var(--clock-white); }
+
+/* A quarter cell is a window onto a giant letter: the letter is sized to span
+   the 2x2 block and pinned to a corner so this cell shows just its quarter.
+   The cell's own overflow + the flap clip-paths crop it to the quadrant. */
+.qbig {
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: clamp(38px, 15cqw, 58px);
+  line-height: 1;
+  color: var(--logo-amber);
+}
+
+.qcell[data-q="tl"] .qbig { left: 0;  top: 0; }
+.qcell[data-q="tr"] .qbig { right: 0; top: 0; }
+.qcell[data-q="bl"] .qbig { left: 0;  bottom: 0; }
+.qcell[data-q="br"] .qbig { right: 0; bottom: 0; }
 
 /* Quick-pick destinations */
 #quick { margin-top: 12px; }

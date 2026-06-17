@@ -7,7 +7,7 @@
   <meta name="description" content="Vertrektijden en routes vanaf huis — Gaasperplas, Leerdamhof, Bijlmer ArenA">
   <meta name="theme-color" content="#0d0d0f">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="style.css?v=23">
+  <link rel="stylesheet" href="style.css?v=24">
   <link rel="icon" type="image/svg+xml" href="icon.svg">
   <link rel="icon" href="icons/icon-192.png">
   <!-- iOS PWA -->
@@ -28,19 +28,11 @@
       <span class="screw" aria-hidden="true"></span>
       <span class="screw" aria-hidden="true"></span>
 
-    <header>
-      <div class="brand" aria-label="BCP Travel">
-        <div class="brand-board">
-          <span class="tile" data-letter="B"><span class="tile-half tile-bottom">B</span><span class="tile-half tile-top" aria-hidden="true">B</span></span>
-          <span class="tile" data-letter="C"><span class="tile-half tile-bottom">C</span><span class="tile-half tile-top" aria-hidden="true">C</span></span>
-          <span class="tile" data-letter="P"><span class="tile-half tile-bottom">P</span><span class="tile-half tile-top" aria-hidden="true">P</span></span>
-        </div>
-        <span class="brand-word">Travel</span>
-      </div>
-    </header>
-
-    <!-- Destination search -->
-    <section id="search">
+    <!-- The machine: BCP-Travel logo (2 rows) + search board (3 rows) form one
+         continuous 5x12 split-flap board. The logo is JS-built; tapping it
+         reloads (the search-wrap below it focuses the input). -->
+    <div class="machine">
+      <div id="logo-board" aria-label="BCP Travel"></div>
       <div class="search-wrap">
         <input id="dest-input" type="text" placeholder="" aria-label="Bestemming"
                autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
@@ -48,14 +40,14 @@
         <div id="ghost" aria-hidden="true"></div>
         <ul id="suggestions" hidden></ul>
       </div>
-      <div id="quick" hidden>
-        <div id="quick-chips"></div>
-      </div>
-      <div id="recents" hidden>
-        <p class="recents-label">Recent</p>
-        <div id="recent-chips"></div>
-      </div>
-    </section>
+    </div>
+    <div id="quick" hidden>
+      <div id="quick-chips"></div>
+    </div>
+    <div id="recents" hidden>
+      <p class="recents-label">Recent</p>
+      <div id="recent-chips"></div>
+    </div>
 
     <!-- Route results -->
     <section id="routes" hidden>
@@ -140,6 +132,6 @@
     </div>
   </main>
 
-  <script src="app.js?v=23"></script>
+  <script src="app.js?v=24"></script>
 </body>
 </html>

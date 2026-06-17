@@ -299,16 +299,21 @@ document.addEventListener('click', (e) => {
 const DRUM = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789&-?!:'.";
 const FLAP_STEP_MS = 34;
 
+function makeCell(extra) {
+  const node = el('span', `fcell${extra ? ` ${extra}` : ''}`, '');
+  const bottom = el('span', 'cf cf-bottom', '');
+  const top = el('span', 'cf cf-top', '');
+  node.append(bottom, top);
+  return { node, bottom, top, cur: ' ', timer: null, start: null };
+}
+
 function makeFlapRow(cols, cls) {
   const row = el('span', `flaprow${cls ? ` ${cls}` : ''}`, '');
   const cells = [];
   for (let i = 0; i < cols; i++) {
-    const node = el('span', 'fcell', '');
-    const bottom = el('span', 'cf cf-bottom', '');
-    const top = el('span', 'cf cf-top', '');
-    node.append(bottom, top);
-    row.append(node);
-    cells.push({ node, bottom, top, cur: ' ', timer: null, start: null });
+    const c = makeCell();
+    row.append(c.node);
+    cells.push(c);
   }
   return { row, cells };
 }
@@ -359,8 +364,10 @@ function spinRowTo(flap, str, baseDelay = 0) {
 }
 
 // Spin a set of rows (top to bottom) with the row-stagger between their starts.
-function spinRows(pairs) {
-  pairs.forEach(([flap, text], ri) => spinRowTo(flap, text, ri * ROW_STAGGER_MS));
+// `baseRow` offsets the wave so the search rows can continue on from the two
+// logo rows above them (rows 2-4 of the one 5-row machine).
+function spinRows(pairs, baseRow = 0) {
+  pairs.forEach(([flap, text], ri) => spinRowTo(flap, text, (baseRow + ri) * ROW_STAGGER_MS));
 }
 
 function stopRow(flap) {
@@ -416,19 +423,21 @@ function ensureGhost() {
 
 const randomHeader = () => HEADERS[Math.floor(Math.random() * HEADERS.length)];
 
-function showGhost() {
+// `baseRow` (2 on first load / reload) continues the logo's top-to-bottom
+// wave into the search rows; other calls just animate the rows on their own.
+function showGhost(baseRow = 0) {
   ensureGhost();
   ghost.classList.remove('hidden');
   clearInterval(ghostTimer);
   ghostBoard.forEach(stopRow);
   if (currentDest) {
     const [a, b] = wrapToBoard(currentDest.name, GHOST_COLS, 2);
-    spinRows([[ghostBoard[0], 'Op reis naar'], [ghostBoard[1], a], [ghostBoard[2], b]]);
+    spinRows([[ghostBoard[0], 'Op reis naar'], [ghostBoard[1], a], [ghostBoard[2], b]], baseRow);
     return;
   }
   ghostIdx = 0;
   const [l0, l1] = wrapToBoard(`${DESTINATIONS[0]}?`, GHOST_COLS, 2);
-  spinRows([[ghostBoard[0], HEADERS[0]], [ghostBoard[1], l0], [ghostBoard[2], l1]]);
+  spinRows([[ghostBoard[0], HEADERS[0]], [ghostBoard[1], l0], [ghostBoard[2], l1]], baseRow);
   ghostTimer = setInterval(() => {
     ghostIdx += 1;
     const [a, b] = wrapToBoard(`${DESTINATIONS[ghostIdx % DESTINATIONS.length]}?`, GHOST_COLS, 2);
@@ -869,42 +878,165 @@ function spinDigit(cell, bottom, top, targetChar) {
   }, CLK_SPIN_MS);
 }
 
-// ---- Brand tile alphabet spin -------------------------------------------
-// On load / manual refresh each tile starts at "A" and flaps through the
-// alphabet to its target letter. All tiles flip at the same rate, so B (1
-// step) lands first, C (2) second, and P (15 steps) takes ~0.5s.
-const SPIN_STEP_MS = 33; // 15 steps (A->P) ~= 0.5s
+// ---- Logo board: BCP (as quarter-flaps) + TRAVEL + live clock -----------
+// The machine's top two rows are the logo, built from the same flap cells as
+// the search board (one 5x12 raster). Each B/C/P letter is a 2x2 grid of
+// quarter cells; on load every quarter cycles the whole alphabet — showing
+// that corner of each passing letter — before resolving to its corner of
+// B/C/P. TRAVEL fills the rest of the top row; the live clock (white) sits
+// right-aligned on the bottom row.
+const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const DIGITS = '0123456789';
+let logoRows = [[], []];        // [row0 cells, row1 cells], 12 each
+let clockDigitCells = [];       // the 4 animating HH:MM digit cells, left -> right
 
-function setTileGlyph(tile, ch) {
-  tile.querySelector('.tile-bottom').textContent = ch;
-  tile.querySelector('.tile-top').textContent = ch;
+function makeQuarterCell(quadrant, target) {
+  const cell = makeCell('qcell');
+  cell.node.dataset.q = quadrant;        // tl / tr / bl / br
+  cell.bottom.append(el('span', 'qbig', ''));
+  cell.top.append(el('span', 'qbig', ''));
+  cell.kind = 'q';
+  cell.target = target;
+  return cell;
 }
 
-function spinTile(tile) {
-  const target = (tile.dataset.letter || 'A').toUpperCase().charCodeAt(0);
-  let code = 'A'.charCodeAt(0);
-  setTileGlyph(tile, 'A');
-  if (target <= code) { setTileGlyph(tile, String.fromCharCode(target)); return; }
-  const id = setInterval(() => {
-    const oldCh = String.fromCharCode(code);
-    code += 1;
-    setTileGlyph(tile, String.fromCharCode(code));
-    tile.querySelectorAll('.tile-fall').forEach((f) => f.remove());
-    const fall = el('span', 'tile-half tile-fall', oldCh);
-    fall.setAttribute('aria-hidden', 'true');
-    tile.append(fall);
+function setQGlyph(cell, ch) {
+  const g = ch === ' ' ? '' : ch;
+  cell.bottom.firstChild.textContent = g;
+  cell.top.firstChild.textContent = g;
+}
+
+// One quarter runs a full alphabet loop (start one letter past the target, so
+// it shows all 26) and stops on its target corner.
+function spinQuarter(cell) {
+  clearInterval(cell.timer);
+  let idx = (ALPHA.indexOf(cell.target) + 1) % 26;
+  cell.cur = ALPHA[idx];
+  setQGlyph(cell, cell.cur);
+  cell.timer = setInterval(() => {
+    const old = cell.cur;
+    idx = (idx + 1) % 26;
+    cell.cur = ALPHA[idx];
+    setQGlyph(cell, cell.cur);
+    cell.node.querySelectorAll('.cf-fall').forEach((f) => f.remove());
+    const fall = el('span', 'cf cf-fall', '');
+    fall.append(el('span', 'qbig', old));
+    cell.node.append(fall);
     fall.addEventListener('animationend', () => fall.remove());
-    if (code >= target) clearInterval(id);
-  }, SPIN_STEP_MS);
+    if (cell.cur === cell.target) clearInterval(cell.timer);
+  }, FLAP_STEP_MS);
 }
 
-function spinBrandTiles() {
-  document.querySelectorAll('.brand .tile').forEach((tile) => spinTile(tile));
+// A clock / boot digit flap: always rolls forward, wrapping 9 -> 0.
+function spinDigitCell(cell, fromChar, toChar) {
+  clearInterval(cell.timer);
+  let idx = Math.max(0, DIGITS.indexOf(fromChar));
+  const tgt = Math.max(0, DIGITS.indexOf(toChar));
+  cell.cur = DIGITS[idx];
+  setCellGlyph(cell, cell.cur);
+  if (idx === tgt) return;
+  cell.timer = setInterval(() => {
+    const old = cell.cur;
+    idx = (idx + 1) % 10;
+    cell.cur = DIGITS[idx];
+    setCellGlyph(cell, cell.cur);
+    cell.node.querySelectorAll('.cf-fall').forEach((f) => f.remove());
+    const fall = el('span', 'cf cf-fall', old);
+    cell.node.append(fall);
+    fall.addEventListener('animationend', () => fall.remove());
+    if (idx === tgt) clearInterval(cell.timer);
+  }, FLAP_STEP_MS);
+}
+
+const clockDigits = () => {
+  const t = timeFmt.format(new Date());   // "HH:MM"
+  return [t[0], t[1], t[3], t[4]];
+};
+
+function startLogoCell(cell) {
+  if (cell.kind === 'q') spinQuarter(cell);
+  else if (cell.kind === 'char') spinCellTo(cell, cell.target);
+  else if (cell.kind === 'digit') spinDigitCell(cell, '0', cell.target);
+  else setCellGlyph(cell, cell.target);   // static (colon / blank)
+}
+
+function buildLogoBoard() {
+  const board = $('logo-board');
+  board.classList.add('logo-board');
+  const row0 = el('span', 'flaprow flaprow-display logo-row', '');
+  const row1 = el('span', 'flaprow flaprow-display logo-row', '');
+  logoRows = [[], []];
+
+  // Columns 0-5: B C P, each a 2x2 grid of quarter cells.
+  for (const L of ['B', 'C', 'P']) {
+    const tl = makeQuarterCell('tl', L);
+    const tr = makeQuarterCell('tr', L);
+    const bl = makeQuarterCell('bl', L);
+    const br = makeQuarterCell('br', L);
+    row0.append(tl.node, tr.node);
+    row1.append(bl.node, br.node);
+    logoRows[0].push(tl, tr);
+    logoRows[1].push(bl, br);
+  }
+
+  // Columns 6-11, top row: T R A V E L.
+  for (const ch of 'TRAVEL') {
+    const cell = makeCell();
+    cell.kind = 'char';
+    cell.target = ch;
+    row0.append(cell.node);
+    logoRows[0].push(cell);
+  }
+
+  // Columns 6-11, bottom row: a blank, then the right-aligned clock " HH:MM".
+  const dig = clockDigits();
+  const slots = [' ', dig[0], dig[1], ':', dig[2], dig[3]];
+  clockDigitCells = [];
+  for (const ch of slots) {
+    const cell = makeCell('clock-cell');
+    if (/\d/.test(ch)) { cell.kind = 'digit'; cell.target = ch; clockDigitCells.push(cell); }
+    else { cell.kind = 'static'; cell.target = ch; setCellGlyph(cell, ch); }
+    row1.append(cell.node);
+    logoRows[1].push(cell);
+  }
+
+  board.append(row0, row1);
+}
+
+// Animate the two logo rows on the shared wave: row 0 first, row 1 a
+// row-stagger later, each cell offset left to right by the char-stagger.
+function spinLogo() {
+  const dig = clockDigits();
+  let di = 0;
+  for (const cell of logoRows[1]) if (cell.kind === 'digit') cell.target = dig[di++];
+  logoRows.forEach((cells, ri) => {
+    cells.forEach((cell, col) => {
+      clearTimeout(cell.start);
+      cell.start = setTimeout(() => startLogoCell(cell),
+        ri * ROW_STAGGER_MS + col * CHAR_STAGGER_MS);
+    });
+  });
+}
+
+// Live clock: flip only the digits that changed, left to right, forward only.
+function updateClock() {
+  const dig = clockDigits();
+  clockDigitCells.forEach((cell, i) => {
+    if (cell.cur === dig[i]) return;
+    clearTimeout(cell.start);
+    cell.start = setTimeout(() => spinDigitCell(cell, cell.cur, dig[i]), i * CHAR_STAGGER_MS);
+  });
+}
+
+function startLogoClock() {
+  const ms = 60_000 - (Date.now() % 60_000);
+  setTimeout(() => { updateClock(); setInterval(updateClock, 60_000); }, ms + 50);
 }
 
 // The logo doubles as the refresh button (so does pull-to-refresh).
-document.querySelector('.brand').addEventListener('click', () => {
-  spinBrandTiles();
+$('logo-board').addEventListener('click', () => {
+  spinLogo();
+  if (!ghost.classList.contains('hidden')) showGhost(2);
   refreshBoards();
 });
 
@@ -928,9 +1060,11 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
 }
 
-spinBrandTiles();
+buildLogoBoard();
+spinLogo();
+startLogoClock();
 refreshBoards();
 startAutoRefresh();
 renderQuick();
 showIdle();
-showGhost();
+showGhost(2);   // continue the logo's wave into the search rows
