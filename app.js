@@ -948,6 +948,26 @@ function spinDigitCell(cell, fromChar, toChar) {
   }, FLAP_STEP_MS);
 }
 
+// The colon boots like a digit: flips 0..9 forward, then settles on ":".
+const COLON_DRUM = '0123456789:';
+function spinColonCell(cell) {
+  clearInterval(cell.timer);
+  let idx = 0;
+  cell.cur = COLON_DRUM[0];
+  setCellGlyph(cell, cell.cur);
+  cell.timer = setInterval(() => {
+    const old = cell.cur;
+    idx += 1;
+    cell.cur = COLON_DRUM[idx];
+    setCellGlyph(cell, cell.cur);
+    cell.node.querySelectorAll('.cf-fall').forEach((f) => f.remove());
+    const fall = el('span', 'cf cf-fall', old);
+    cell.node.append(fall);
+    fall.addEventListener('animationend', () => fall.remove());
+    if (idx >= COLON_DRUM.length - 1) clearInterval(cell.timer);
+  }, FLAP_STEP_MS);
+}
+
 const clockDigits = () => {
   const t = timeFmt.format(new Date());   // "HH:MM"
   return [t[0], t[1], t[3], t[4]];
@@ -957,7 +977,8 @@ function startLogoCell(cell) {
   if (cell.kind === 'q') spinQuarter(cell);
   else if (cell.kind === 'char') spinCellTo(cell, cell.target);
   else if (cell.kind === 'digit') spinDigitCell(cell, '0', cell.target);
-  else setCellGlyph(cell, cell.target);   // static (colon / blank)
+  else if (cell.kind === 'colon') spinColonCell(cell);
+  else setCellGlyph(cell, cell.target);   // static (blank)
 }
 
 function buildLogoBoard() {
@@ -995,6 +1016,7 @@ function buildLogoBoard() {
   for (const ch of slots) {
     const cell = makeCell('clock-cell');
     if (/\d/.test(ch)) { cell.kind = 'digit'; cell.target = ch; clockDigitCells.push(cell); }
+    else if (ch === ':') { cell.kind = 'colon'; cell.target = ':'; }
     else { cell.kind = 'static'; cell.target = ch; setCellGlyph(cell, ch); }
     row1.append(cell.node);
     logoRows[1].push(cell);

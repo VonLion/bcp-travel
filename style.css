@@ -573,7 +573,8 @@ ul.departures li {
   right: 0;
   top: 50%;
   height: 1px;
-  background: #000;
+  /* Semi-transparent so the big logo letters read through the fold line. */
+  background: rgba(0, 0, 0, 0.5);
   z-index: 2;
 }
 
