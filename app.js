@@ -133,10 +133,13 @@ async function loadBoard(board) {
   const data = await res.json();
 
   const now = Date.now();
+  // Keep cancelled departures (they're shown struck through, not hidden); a
+  // cancelled trip may drop its realtime `departure`, so fall back to schedule.
   board._deps = (data.stopTimes || [])
-    .filter((st) => !st.cancelled && st.place.pickupType !== 'NOT_ALLOWED' && st.place.departure)
+    .map((st) => ({ ...st, _when: st.place.departure || st.place.scheduledDeparture }))
+    .filter((st) => st.place.pickupType !== 'NOT_ALLOWED' && st._when)
     .filter(board.filter)
-    .filter((st) => new Date(st.place.departure).getTime() >= now - 30_000);
+    .filter((st) => new Date(st._when).getTime() >= now - 30_000);
 
   renderBoard(board);
 }
@@ -169,14 +172,15 @@ function renderBoard(board) {
   // Reserve a delay column only as wide as the current view needs: 0 when
   // everything is on time, otherwise sized to the largest delay shown.
   const delays = shown.map((st) =>
-    Math.round((new Date(st.place.departure) - new Date(st.place.scheduledDeparture)) / 60000));
+    Math.round((new Date(st._when) - new Date(st.place.scheduledDeparture)) / 60000));
   const maxDelay = Math.max(0, ...delays);
   const showDelay = maxDelay > 0;
   list.style.setProperty('--delay-w', showDelay ? `${`+${maxDelay}`.length}ch` : '0px');
 
   list.innerHTML = '';
   shown.forEach((st, i) => {
-    const dep = new Date(st.place.departure);
+    const cancelled = !!(st.cancelled || st.tripCancelled);
+    const dep = new Date(st._when);
     const sched = new Date(st.place.scheduledDeparture);
     const mins = Math.max(0, Math.round((dep - now) / 60000));
     const delayMin = delays[i];
@@ -187,6 +191,7 @@ function renderBoard(board) {
     const li = document.createElement('li');
     li.dataset.key = key;
     li.dataset.tm = tmText;
+    if (cancelled) li.classList.add('cancelled');
 
     const badge = el('span', `line-badge small mode-${st.mode.toLowerCase()}`,
       shortLine(st));
@@ -202,11 +207,15 @@ function renderBoard(board) {
     const oldTm = key in prevTm ? prevTm[key] : null;
     time.append(clockFlap(tmText, oldTm, boot));
     li.append(time);
-    if (showDelay) li.append(el('span', 'dep-delay', delayMin > 0 ? `+${delayMin}` : ''));
+    if (showDelay) li.append(el('span', 'dep-delay', !cancelled && delayMin > 0 ? `+${delayMin}` : ''));
 
     const countdown = el('span', 'dep-countdown', '');
-    if (st.realTime) countdown.append(el('span', 'rt-dot', ''));
-    countdown.append(document.createTextNode(cdText));
+    if (cancelled) {
+      countdown.append(document.createTextNode('vervallen'));
+    } else {
+      if (st.realTime) countdown.append(el('span', 'rt-dot', ''));
+      countdown.append(document.createTextNode(cdText));
+    }
     li.append(countdown);
     list.append(li);
   });

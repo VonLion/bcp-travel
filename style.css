@@ -351,6 +351,23 @@ ul.departures li {
   white-space: nowrap;
 }
 
+/* Cancelled departure: dimmed, struck destination, red "vervallen" instead of
+   the countdown (let it size to its text — only on this exceptional row). */
+.departures li.cancelled { opacity: 0.62; }
+
+.departures li.cancelled .dep-headsign {
+  text-decoration: line-through;
+  text-decoration-color: var(--red);
+}
+
+.departures li.cancelled .dep-countdown {
+  flex: 0 0 auto;
+  color: var(--red);
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
 .dep-time {
   display: inline-flex;
   align-items: center;
