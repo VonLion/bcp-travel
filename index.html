@@ -7,7 +7,7 @@
   <meta name="description" content="Vertrektijden en routes vanaf huis — Gaasperplas, Leerdamhof, Bijlmer ArenA">
   <meta name="theme-color" content="#0d0d0f">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="style.css?v=27">
+  <link rel="stylesheet" href="style.css?v=28">
   <link rel="icon" type="image/svg+xml" href="icon.svg">
   <link rel="icon" href="icons/icon-192.png">
   <!-- iOS PWA -->
@@ -41,6 +41,8 @@
         <ul id="suggestions" hidden></ul>
       </div>
     </div>
+    <!-- Reizen tab content: search lists, route results, departure boards -->
+    <div id="tab-reizen">
     <div id="quick" hidden>
       <div id="quick-chips"></div>
     </div>
@@ -153,10 +155,38 @@
 
       <p id="boards-updated"></p>
     </section>
+    </div><!-- /#tab-reizen -->
+
+    <!-- In de lucht tab: nearby aircraft (airplanes.live + adsbdb routes) -->
+    <div id="tab-lucht" hidden>
+      <div class="board" id="board-planes">
+        <div class="board-head">
+          <span class="mode-tile" aria-label="In de lucht">
+            <svg viewBox="0 0 52 44" aria-hidden="true"><path d="M26 5 L30 23 L44 31 L44 34 L30 29 L29 38 L34 42 L34 44 L26 41 L18 44 L18 42 L23 38 L22 29 L8 34 L8 31 L22 23 Z" fill="#2bbcbc"/></svg>
+          </span>
+          <div class="board-title">
+            <h2>In de lucht</h2>
+            <p class="board-sub" id="planes-sub">boven Zuidoost &middot; dichtstbij eerst</p>
+          </div>
+        </div>
+        <ul class="departures plane-list" data-empty="Geen vliegtuigen in de buurt"></ul>
+      </div>
+    </div>
 
     </div>
   </main>
 
-  <script src="app.js?v=27"></script>
+  <nav id="tabbar" role="tablist" aria-label="Weergave">
+    <button class="tab" type="button" data-tab="reizen" aria-selected="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 L20 21 L12 16 L4 21 Z" fill="currentColor"/></svg>
+      <span>Reizen</span>
+    </button>
+    <button class="tab" type="button" data-tab="lucht" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L13.5 10.5 L21 14.5 L21 16 L13.5 13.5 L13 19 L15.5 20.8 L15.5 22 L12 20.8 L8.5 22 L8.5 20.8 L11 19 L10.5 13.5 L3 16 L3 14.5 L10.5 10.5 Z" fill="currentColor"/></svg>
+      <span>In de lucht</span>
+    </button>
+  </nav>
+
+  <script src="app.js?v=28"></script>
 </body>
 </html>

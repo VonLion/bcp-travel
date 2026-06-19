@@ -397,6 +397,131 @@ function renderReturnBoard(itineraries) {
 }
 
 // ============================================================
+// Planes overhead — "In de lucht" tab
+// airplanes.live for nearby aircraft, adsbdb to resolve callsign -> route.
+// Both are keyless and CORS-open. Used so we can look up a plane we hear.
+// ============================================================
+const PLANES_POINT = 'https://api.airplanes.live/v2/point';   // /{lat}/{lon}/{nm}
+const ROUTE_API = 'https://api.adsbdb.com/v0/callsign';
+const PLANES_RADIUS_NM = 22;        // ~40 km
+const PLANES_REFRESH_MS = 15_000;
+const routeCache = new Map();       // callsign -> {from,to} | null (null = no known route)
+let planesTimer = null;
+let activeTab = 'reizen';
+
+function switchTab(tab) {
+  activeTab = tab;
+  $('tab-reizen').hidden = tab !== 'reizen';
+  $('tab-lucht').hidden = tab !== 'lucht';
+  document.querySelectorAll('#tabbar .tab').forEach((b) =>
+    b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+  if (tab === 'lucht') { loadPlanes(); startPlanesRefresh(); } else { stopPlanesRefresh(); }
+}
+
+function startPlanesRefresh() {
+  clearInterval(planesTimer);
+  planesTimer = setInterval(() => {
+    if (document.visibilityState === 'visible' && activeTab === 'lucht') loadPlanes();
+  }, PLANES_REFRESH_MS);
+}
+function stopPlanesRefresh() { clearInterval(planesTimer); }
+
+const callsignOf = (a) => (a.flight || '').trim();
+const airlineTag = (s) => (s.match(/^[A-Z]{2,3}/) || [s.slice(0, 3)])[0];
+const fmtAlt = (ft) => `${Math.round(ft).toLocaleString('nl-NL')} ft`;
+const fmtKm = (nm) => `${(nm * 1.852).toFixed(1).replace('.', ',')} km`;
+function altTrend(a) {
+  const r = a.baro_rate ?? a.geom_rate ?? 0;
+  return r > 128 ? '↑' : r < -128 ? '↓' : '';
+}
+
+async function loadPlanes() {
+  const card = $('board-planes');
+  const list = card.querySelector('.departures');
+  const c = userCoords || HOME;
+  $('planes-sub').textContent =
+    `${userCoords ? 'om je heen' : 'boven Zuidoost'} · dichtstbij eerst`;
+  try {
+    const res = await fetch(`${PLANES_POINT}/${c.lat}/${c.lon}/${PLANES_RADIUS_NM}`);
+    if (!res.ok) throw new Error(`planes ${res.status}`);
+    const data = await res.json();
+    const ac = (data.ac || [])
+      .filter((a) => typeof a.alt_baro === 'number' && a.lat != null && a.lon != null)
+      .sort((x, y) => (x.dst ?? 1e3) - (y.dst ?? 1e3))
+      .slice(0, 8);
+    renderPlanes(ac);
+    card.classList.remove('error');
+    ac.forEach((a, i) => setTimeout(() => resolveRoute(a), i * 120));  // stagger route lookups
+  } catch (err) {
+    console.error(err);
+    list.innerHTML = ''; list.dataset.empty = 'Kon vliegtuigen niet laden';
+  }
+}
+
+function renderPlanes(ac) {
+  const list = $('board-planes').querySelector('.departures');
+  list.innerHTML = '';
+  ac.forEach((a) => {
+    const cs = callsignOf(a);
+    const label = cs || a.r || a.hex || '?';
+    const li = document.createElement('li');
+    li.dataset.cs = cs;
+
+    li.append(el('span', 'plane-badge', airlineTag(label)));
+
+    const info = el('div', 'plane-info', '');
+    const cached = cs && routeCache.get(cs);
+    const routeText = cached ? `${cached.from} → ${cached.to}` : (a.desc || a.t || label);
+    info.append(el('div', 'plane-route', routeText));
+    info.append(el('div', 'plane-meta',
+      [label, a.t, `${fmtAlt(a.alt_baro)}${altTrend(a) ? ` ${altTrend(a)}` : ''}`, fmtKm(a.dst ?? 0)]
+        .filter(Boolean).join(' · ')));
+    li.append(info);
+
+    const link = el('a', 'fr24-link', 'FR24 ›');
+    link.href = cs
+      ? `https://www.flightradar24.com/${encodeURIComponent(cs)}`
+      : `https://www.flightradar24.com/data/aircraft/${encodeURIComponent(a.r || '')}`;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    li.append(link);
+
+    list.append(li);
+  });
+}
+
+async function resolveRoute(a) {
+  const cs = callsignOf(a);
+  if (!cs) return;
+  let route = routeCache.get(cs);
+  if (route === undefined) {
+    try {
+      const res = await fetch(`${ROUTE_API}/${encodeURIComponent(cs)}`);
+      if (res.status === 404) { route = null; routeCache.set(cs, null); }
+      else if (res.ok) {
+        const fr = (await res.json()).response?.flightroute;
+        route = fr ? { from: cityOf(fr.origin), to: cityOf(fr.destination) } : null;
+        routeCache.set(cs, route);
+      } else { return; }   // transient (429/5xx): leave uncached, retry next refresh
+    } catch { return; }
+  }
+  if (route) applyRoute(cs, route);
+}
+
+const cityOf = (ap) => (ap ? (ap.municipality || ap.iata_code || ap.name || '') : '');
+
+function applyRoute(cs, route) {
+  document.querySelectorAll('#board-planes .departures li').forEach((li) => {
+    if (li.dataset.cs === cs) {
+      const r = li.querySelector('.plane-route');
+      if (r) r.textContent = `${route.from} → ${route.to}`;
+    }
+  });
+}
+
+function refreshCurrent() { if (activeTab === 'lucht') loadPlanes(); else refreshActive(); }
+
+// ============================================================
 // Autocomplete
 // ============================================================
 const input = $('dest-input');
@@ -418,6 +543,7 @@ input.addEventListener('input', () => {
 });
 
 input.addEventListener('focus', () => {
+  switchTab('reizen');   // searching is a travel action; results live on this tab
   hideGhost();
   if (input.value.trim().length < 2) showIdle();
 });
@@ -948,7 +1074,7 @@ document.addEventListener('touchend', async () => {
   pullStartY = null;
   const indicator = $('pull-indicator');
   if (indicator.classList.contains('visible')) {
-    await refreshActive();
+    await refreshCurrent();
     indicator.classList.remove('visible');
   }
 });
@@ -1196,7 +1322,7 @@ function startLogoClock() {
 $('logo-board').addEventListener('click', () => {
   spinLogo();
   if (!ghost.classList.contains('hidden')) showGhost(2);
-  refreshActive();
+  refreshCurrent();
 });
 
 // Expand/collapse toggles (train board's "Volgend uur").
@@ -1211,6 +1337,11 @@ for (const board of BOARDS) {
 // Home / return toggle — a manual choice sticks for the session.
 document.querySelectorAll('#mode-toggle .seg').forEach((b) => {
   b.addEventListener('click', () => { manualMode = b.dataset.mode; applyMode(manualMode); });
+});
+
+// Bottom tab bar: Reizen <-> In de lucht.
+document.querySelectorAll('#tabbar .tab').forEach((b) => {
+  b.addEventListener('click', () => switchTab(b.dataset.tab));
 });
 
 document.addEventListener('visibilitychange', () => {
