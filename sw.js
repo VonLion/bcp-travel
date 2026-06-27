@@ -1,11 +1,12 @@
 'use strict';
 
-const CACHE = 'bcp-v30';
+const CACHE = 'bcp-v31';
 const SHELL = [
   './',
   './index.html',
   './style.css',
   './app.js',
+  './family-fun.json',
   './manifest.webmanifest',
   './logo.svg',
   './icon.svg',

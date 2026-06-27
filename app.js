@@ -418,6 +418,7 @@ function switchTab(tab) {
   activeTab = tab;
   $('tab-reizen').hidden = tab !== 'reizen';
   $('tab-lucht').hidden = tab !== 'lucht';
+  $('tab-uitjes').hidden = tab !== 'uitjes';
   document.querySelectorAll('#tabbar .tab').forEach((b) =>
     b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
   const machine = document.querySelector('.machine');
@@ -428,12 +429,13 @@ function switchTab(tab) {
     loadPlanes();
     setPlaneView(planeView);           // defaults to the map
     startPlanesRefresh();
-  } else {
-    machine.classList.remove('planes');
-    ghostMode = 'search';
-    showGhost();
-    stopPlanesRefresh();
+    return;
   }
+  machine.classList.remove('planes');
+  ghostMode = 'search';
+  showGhost();
+  stopPlanesRefresh();
+  if (tab === 'uitjes') loadFamily();
 }
 
 function startPlanesRefresh() {
@@ -690,6 +692,121 @@ function selectPlane(a) {
 }
 
 function refreshCurrent() { if (activeTab === 'lucht') loadPlanes(); else refreshActive(); }
+
+// ============================================================
+// Uitjes — family outings (family-fun.json, refreshed by an agent)
+// ============================================================
+let familyData = null;
+
+const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+const dateShortNL = new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short' });
+const fmtShort = (iso) => dateShortNL.format(new Date(iso)).replace('.', '');
+const DAY_NL = { Mon: 'Ma', Tue: 'Di', Wed: 'Wo', Thu: 'Do', Fri: 'Vr', Sat: 'Za', Sun: 'Zo' };
+const dayLabelNL = (s) => (s || '').replace(/Mon|Tue|Wed|Thu|Fri|Sat|Sun/g, (m) => DAY_NL[m]);
+const itemStart = (it) => it.start || (it.days && it.days[0]);
+const itemEnd = (it) => it.end || (it.days && it.days[it.days.length - 1]) || it.start;
+const cleanLoc = (s) => (s || '').replace(/Amsterdam /g, '').trim();
+
+async function loadFamily() {
+  if (familyData) { renderFamily(); return; }
+  const root = $('uitjes-content');
+  try {
+    const res = await fetch('family-fun.json', { cache: 'no-cache' });
+    if (!res.ok) throw new Error(`family ${res.status}`);
+    familyData = await res.json();
+    renderFamily();
+  } catch (err) {
+    console.error(err);
+    root.innerHTML = '';
+    root.append(el('p', 'uitjes-foot', 'Kon uitjes niet laden'));
+  }
+}
+
+function relWeekLabel(w) {
+  const today = startOfToday();
+  if (today >= new Date(w.start) && today <= new Date(w.end)) return 'Deze week';
+  const days = Math.round((new Date(w.start) - today) / 86_400_000);
+  return days > 0 && days <= 7 ? 'Volgende week' : null;
+}
+const weekRange = (w) => `${fmtShort(w.start)} – ${fmtShort(w.end)}`;
+
+function priceChip(it) {
+  if (it.free === true) return { text: 'gratis', cls: 'free' };
+  if (it.price) {
+    const euros = it.price.match(/€\s?\d+/g);
+    return { text: euros ? euros.join(' / ') : 'betaald', cls: 'paid' };
+  }
+  if (it.free === false) return { text: 'betaald', cls: 'paid' };
+  return null;
+}
+
+// Same nav-cursor glyph + styling as the departure-board maps links.
+function mapsLinkFor(location) {
+  const a = el('a', 'maps-link', '');
+  a.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location || '')}`;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  a.setAttribute('aria-label', 'Op Google Maps');
+  a.title = 'Op Google Maps';
+  a.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 L20 21 L12 16 L4 21 Z" fill="currentColor"/></svg>';
+  a.addEventListener('click', (e) => e.stopPropagation());
+  return a;
+}
+
+function familyCard(it, isRadar) {
+  const local = it.local === true || (it.themes || []).includes('local');
+  const card = el('div', `uitjes-card${local ? ' local' : ''}${isRadar ? ' radar' : ''}`, '');
+  card.append(el('span', 'uitjes-emoji', it.emoji || '📍'));
+
+  const body = el('div', 'uitjes-body', '');
+  body.append(el('div', 'uitjes-name', it.name || ''));
+  const when = isRadar ? (it.date_label || '') : dayLabelNL(it.day_label || '');
+  body.append(el('div', 'uitjes-meta', [when, cleanLoc(it.location)].filter(Boolean).join(' · ')));
+  if (it.note) body.append(el('div', 'uitjes-note', it.note));
+  card.append(body);
+
+  const right = el('div', 'uitjes-right', '');
+  const chip = priceChip(it);
+  if (chip) right.append(el('span', `uitjes-price ${chip.cls}`, chip.text));
+  right.append(mapsLinkFor(it.location));
+  card.append(right);
+
+  if (it.url) card.addEventListener('click', () => window.open(it.url, '_blank', 'noopener'));
+  return card;
+}
+
+function familySection(title, range, items, isRadar) {
+  const sec = el('section', 'uitjes-week', '');
+  const head = el('div', 'uitjes-week-head', '');
+  head.append(el('h3', '', title));
+  if (range) head.append(el('span', 'uitjes-week-range', range));
+  sec.append(head);
+  items.forEach((it) => sec.append(familyCard(it, isRadar)));
+  return sec;
+}
+
+function renderFamily() {
+  const root = $('uitjes-content');
+  root.innerHTML = '';
+  if (!familyData) return;
+  const today = startOfToday();
+
+  (familyData.weeks || [])
+    .filter((w) => new Date(w.end) >= today)
+    .forEach((w) => {
+      const items = (w.items || [])
+        .filter((it) => new Date(itemEnd(it)) >= today)
+        .sort((a, b) => new Date(itemStart(a)) - new Date(itemStart(b)));
+      if (!items.length) return;
+      const rel = relWeekLabel(w);
+      root.append(familySection(rel || weekRange(w), rel ? weekRange(w) : '', items, false));
+    });
+
+  const radar = (familyData.radar || []).filter((it) => new Date(itemEnd(it)) >= today);
+  if (radar.length) root.append(familySection('Op de radar', 'later deze zomer', radar, true));
+
+  if (familyData.generated) root.append(el('p', 'uitjes-foot', `Bijgewerkt ${fmtShort(familyData.generated)}`));
+}
 
 // ============================================================
 // Autocomplete

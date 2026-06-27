@@ -335,6 +335,100 @@ body {
 
 .fr24-link:active { filter: brightness(1.3); }
 
+/* ---- Uitjes (family outings) ---- */
+#uitjes-content { padding-top: 2px; }
+
+.uitjes-week { margin-bottom: 18px; }
+
+.uitjes-week-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0 2px 8px;
+}
+
+.uitjes-week-head h3 { margin: 0; font-size: 14px; font-weight: 700; }
+.uitjes-week-range { font-size: 11.5px; color: var(--text-dim); }
+
+.uitjes-card {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.uitjes-card:active { filter: brightness(1.15); }
+.uitjes-card.local { border-left: 3px solid var(--accent); }
+.uitjes-card.radar { background: #141319; }
+
+.uitjes-emoji {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  background: var(--board);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.uitjes-body { flex: 1; min-width: 0; }
+
+.uitjes-name {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.uitjes-meta { margin-top: 3px; font-size: 12px; color: var(--text-dim); }
+
+.uitjes-note {
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.uitjes-right {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* Maps link always pins to the bottom-right, whether or not there's a chip. */
+.uitjes-right .maps-link { margin-top: auto; }
+
+.uitjes-price {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.uitjes-price.free { background: #123a2a; color: var(--green); }
+.uitjes-price.paid { background: #2a2418; color: var(--amber); }
+
+.uitjes-foot {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin: 4px 0 0;
+}
+
 /* ---- Home / return toggle ---- */
 #mode-bar {
   display: flex;
