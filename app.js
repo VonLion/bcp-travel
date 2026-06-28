@@ -281,7 +281,6 @@ let mode = 'home';
 let manualMode = null;     // set by the toggle; overrides auto-detect this session
 let userCoords = null;
 let homeBooted = false;
-let locating = false;
 
 function haversine(a, b) {
   const R = 6371000, rad = (d) => d * Math.PI / 180;
@@ -317,40 +316,42 @@ function loadCachedCoords() {
   } catch { /* ignore */ }
 }
 
-// One geolocation request at a time, and cache the fix. iOS won't make the
-// permission permanent for a home-screen PWA, so we ask at most once per load
-// and reuse the cached position everywhere else.
-function requestLocation(done) {
-  if (!navigator.geolocation || locating) { if (done) done(); return; }
-  locating = true;
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      locating = false;
-      userCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+// Rough, permission-free location from the visitor's IP. City-level only
+// (can be well off on mobile), so it never prompts — we just use it to pick
+// home vs return and to roughly centre the plane map.
+const ROUGH_RADIUS_M = 15_000;   // ~greater Amsterdam: within -> home, else -> return
+
+async function fetchRoughLocation() {
+  try {
+    const res = await fetch('https://get.geojs.io/v1/ip/geo.json');
+    const d = await res.json();
+    const lat = parseFloat(d.latitude), lon = parseFloat(d.longitude);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      userCoords = { lat, lon };
       try { localStorage.setItem('bcp-coords', JSON.stringify({ ...userCoords, t: Date.now() })); } catch { /* ignore */ }
-      if (done) done();
-    },
-    () => { locating = false; if (done) done(); },
-    { timeout: 8000, maximumAge: 600_000 },
-  );
+    }
+  } catch { /* ignore */ }
 }
 
 const decideMode = () =>
-  (userCoords && haversine(userCoords, HOME) > HOME_RADIUS_M) ? 'return' : 'home';
+  (userCoords && haversine(userCoords, HOME) > ROUGH_RADIUS_M) ? 'return' : 'home';
 
-// Apply the cached-coords decision immediately, then refine with one request.
+// No GPS prompt: apply the cached decision now, then refine from the IP lookup.
 function locateAndSetMode() {
   if (manualMode) { applyMode(manualMode); return; }
   applyMode(decideMode());
-  requestLocation(() => { if (!manualMode && decideMode() !== mode) applyMode(decideMode()); });
+  fetchRoughLocation().then(() => {
+    if (!manualMode && decideMode() !== mode) applyMode(decideMode());
+    if (activeTab === 'lucht') loadPlanes();   // re-centre planes on the refined location
+  });
 }
 
 async function loadReturnBoard() {
   const card = $('board-home');
   const list = card.querySelector('.departures');
-  if (!userCoords) {                 // no fix yet; request once, then re-enter
-    list.innerHTML = ''; list.dataset.empty = 'Zet locatie aan voor routes naar huis';
-    requestLocation(() => { if (userCoords && mode === 'return') loadReturnBoard(); });
+  if (!userCoords) {                 // no rough location yet; fetch it, then re-enter
+    list.innerHTML = ''; list.dataset.empty = 'Locatie bepalen…';
+    fetchRoughLocation().then(() => { if (userCoords && mode === 'return') loadReturnBoard(); });
     return;
   }
   try {
@@ -430,6 +431,7 @@ let planeView = 'kaart';
 let selectedPlane = null;
 let ghostMode = 'search';   // persistent ghost board: 'search' (Reizen) | 'planes' (selected flight)
 let planeMap = null, planeLayer = null, youMarker = null, rangeRing = null, mapFitted = false, leafletLoading = null;
+let trail = [], trailLine = null, trailTimer = null;
 
 function switchTab(tab) {
   activeTab = tab;
@@ -450,6 +452,7 @@ function switchTab(tab) {
   }
   machine.classList.remove('planes');
   stopPlanesRefresh();
+  stopTrail();
   if (tab === 'uitjes') {
     ghostMode = 'uitjes';        // flap board cycles the event short names
     showUitjesSuggestions();
@@ -489,6 +492,7 @@ async function loadPlanes() {
     const data = await res.json();
     const ac = (data.ac || [])
       .filter((a) => typeof a.alt_baro === 'number' && a.lat != null && a.lon != null)
+      .filter((a) => !(a.category || '').startsWith('C'))   // drop surface vehicles
       .sort((x, y) => (x.dst ?? 1e3) - (y.dst ?? 1e3))
       .slice(0, 8);
     lastPlanes = ac;
@@ -521,7 +525,7 @@ function renderPlanes(ac) {
     const routeText = cached ? `${cached.from} → ${cached.to}` : (a.desc || a.t || label);
     info.append(el('div', 'plane-route', routeText));
     info.append(el('div', 'plane-meta',
-      [label, a.t, `${fmtAlt(a.alt_baro)}${altTrend(a) ? ` ${altTrend(a)}` : ''}`, fmtKm(a.dst ?? 0)]
+      [KIND_LABEL[planeKind(a)], label, a.t, `${fmtAlt(a.alt_baro)}${altTrend(a) ? ` ${altTrend(a)}` : ''}`, fmtKm(a.dst ?? 0)]
         .filter(Boolean).join(' · ')));
     li.append(info);
 
@@ -574,7 +578,26 @@ const fr24Url = (a) => {
     ? `https://www.flightradar24.com/${encodeURIComponent(cs)}`
     : `https://www.flightradar24.com/data/aircraft/${encodeURIComponent(a.r || '')}`;
 };
-const PLANE_SVG = '<svg viewBox="0 0 24 24"><path d="M12 2 L13.5 10.5 L21 14.5 L21 16 L13.5 13.5 L13 19 L15.5 20.8 L15.5 22 L12 20.8 L8.5 22 L8.5 20.8 L11 19 L10.5 13.5 L3 16 L3 14.5 L10.5 10.5 Z"/></svg>';
+// Top-view glyphs per aircraft kind (pointing north; rotated to the track).
+const PLANE_ICONS = {
+  jet: '<svg viewBox="0 0 24 24"><path d="M12 2 L13.5 10.5 L21 14.5 L21 16 L13.5 13.5 L13 19 L15.5 20.8 L15.5 22 L12 20.8 L8.5 22 L8.5 20.8 L11 19 L10.5 13.5 L3 16 L3 14.5 L10.5 10.5 Z"/></svg>',
+  ga: '<svg viewBox="0 0 24 24"><path d="M12 3 L12.9 9 L21 11 L21 12.4 L12.9 11.4 L12.8 18 L15.2 20 L15.2 21.2 L12 20.2 L8.8 21.2 L8.8 20 L11.2 18 L11.1 11.4 L3 12.4 L3 11 L11.1 9 Z"/></svg>',
+  glider: '<svg viewBox="0 0 24 24"><path d="M12 3 L12.5 9.5 L23 10.3 L23 11.2 L12.5 10.9 L12.4 18 L14 20 L14 21 L12 20.3 L10 21 L10 20 L11.6 18 L11.5 10.9 L1 11.2 L1 10.3 L11.5 9.5 Z"/></svg>',
+  heli: '<svg viewBox="0 0 24 24"><path d="M11.2 3 H12.8 V11.2 H21 V12.8 H12.8 V21 H11.2 V12.8 H3 V11.2 H11.2 Z"/></svg>',
+  misc: '<svg viewBox="0 0 24 24"><path d="M12 7 L17 12 L12 17 L7 12 Z"/></svg>',
+};
+
+// ADS-B emitter category -> our buckets. (C* = surface vehicles, filtered out.)
+function planeKind(a) {
+  const c = a.category || '';
+  if (c === 'A7') return 'heli';
+  if (c === 'B1') return 'glider';
+  if (c === 'A3' || c === 'A4' || c === 'A5' || c === 'A6') return 'jet';
+  if (c === 'A1' || c === 'A2') return 'ga';
+  return 'misc';   // A0/unknown, B2-B7 (balloon, parachutist, ultralight, UAV)
+}
+
+const KIND_LABEL = { jet: '', ga: 'Klein', heli: 'Heli', glider: 'Zweef', misc: 'Overig' };
 
 // Pull Leaflet from the CDN only when the map is first opened.
 function ensureLeaflet() {
@@ -605,6 +628,8 @@ function setPlaneView(v) {
   } else {                              // list never selects -> blank flap board
     selectedPlane = null;
     showPlaneInfo(null);
+    updateFr24(null);
+    stopTrail();
   }
 }
 
@@ -623,17 +648,18 @@ async function showPlaneMap() {
       subdomains: 'abcd', maxZoom: 18,
       attribution: '&copy; OpenStreetMap &copy; CARTO',
     }).addTo(planeMap);
-    rangeRing = L.circle([c.lat, c.lon], {       // 1 km "nearly overhead" reference
-      radius: 1000, color: '#2bbcbc', weight: 1.5, opacity: 0.55,
-      fillColor: '#2bbcbc', fillOpacity: 0.05,
-    }).addTo(planeMap);
+    rangeRing = L.layerGroup([     // radar range rings: 1 / 5 / 10 km
+      L.circle([c.lat, c.lon], { radius: 10000, color: '#2bbcbc', weight: 1, opacity: 0.28, fill: false }),
+      L.circle([c.lat, c.lon], { radius: 5000, color: '#2bbcbc', weight: 1, opacity: 0.35, fill: false }),
+      L.circle([c.lat, c.lon], { radius: 1000, color: '#2bbcbc', weight: 1.5, opacity: 0.6, fillColor: '#2bbcbc', fillOpacity: 0.06 }),
+    ]).addTo(planeMap);
     planeLayer = L.layerGroup().addTo(planeMap);
     youMarker = L.circleMarker([c.lat, c.lon], {
       radius: 5, color: '#2bbcbc', weight: 2, fillColor: '#2bbcbc', fillOpacity: 0.9,
     }).addTo(planeMap);
   } else {
     youMarker.setLatLng([c.lat, c.lon]);
-    rangeRing.setLatLng([c.lat, c.lon]);
+    rangeRing.eachLayer((l) => l.setLatLng([c.lat, c.lon]));
   }
   setTimeout(() => planeMap.invalidateSize(), 0);   // it was hidden until now
   renderPlaneMarkers(lastPlanes);
@@ -649,11 +675,13 @@ function renderPlaneMarkers(ac) {
     const low = a.alt_baro < 10000;                 // the ones we care about most: bigger, opaque
     const scale = sel ? 1.3 : (low ? 1 : 0.62);
     const opacity = sel ? 1 : (low ? 1 : 0.5);
+    const kind = planeKind(a);
+    const rot = kind === 'misc' ? 0 : Math.round(a.track || 0);   // diamond doesn't point
     const icon = L.divIcon({
       className: 'plane-marker',
       html: `<div class="pm${sel ? ' sel' : ''}" `
-        + `style="transform:rotate(${Math.round(a.track || 0)}deg) scale(${scale});opacity:${opacity}">`
-        + `${PLANE_SVG}</div>`,
+        + `style="transform:rotate(${rot}deg) scale(${scale});opacity:${opacity}">`
+        + `${PLANE_ICONS[kind]}</div>`,
       iconSize: [26, 26], iconAnchor: [13, 13],
     });
     const m = L.marker([a.lat, a.lon], { icon }).addTo(planeLayer).on('click', () => selectPlane(a));
@@ -710,9 +738,69 @@ function showPlaneInfo(plane) {
 function selectPlane(a) {
   selectedPlane = a;
   showPlaneInfo(a);
+  updateFr24(a);
+  startTrail(a);
   if (planeView === 'kaart') renderPlaneMarkers(lastPlanes);   // re-highlight
   document.querySelectorAll('#plane-list li').forEach((li) =>
     li.classList.toggle('selected', li.dataset.hex === a.hex));
+}
+
+// Visible Flightradar24 link for the selected flight (real browser, new tab).
+function updateFr24(plane) {
+  const link = $('fr24-link');
+  if (!link) return;
+  if (plane) {
+    link.href = fr24Url(plane);
+    link.textContent = `${callsignOf(plane) || plane.r || 'Vlucht'} op Flightradar24 ›`;
+    link.hidden = false;
+  } else {
+    link.hidden = true;
+  }
+}
+
+// ---- Live trail of the selected plane -----------------------------------
+// The source has no browser-readable history, so we build the trail ourselves
+// by polling the selected hex every few seconds and drawing the path.
+function startTrail(a) {
+  stopTrail();
+  trail = (a.lat != null) ? [[a.lat, a.lon]] : [];
+  drawTrail();
+  trailTimer = setInterval(pollSelectedPlane, 5000);
+}
+
+function stopTrail() {
+  clearInterval(trailTimer); trailTimer = null;
+  trail = [];
+  if (trailLine && planeMap) planeMap.removeLayer(trailLine);
+  trailLine = null;
+}
+
+function drawTrail() {
+  if (!planeMap) return;
+  if (trailLine) planeMap.removeLayer(trailLine);
+  trailLine = trail.length > 1
+    ? L.polyline(trail, { color: '#2bbcbc', weight: 2, opacity: 0.6 }).addTo(planeMap)
+    : null;
+}
+
+async function pollSelectedPlane() {
+  if (!selectedPlane || activeTab !== 'lucht' || planeView !== 'kaart') return;
+  try {
+    const res = await fetch(`https://api.airplanes.live/v2/hex/${selectedPlane.hex}`);
+    const a = (await res.json()).ac?.[0];
+    if (!a || a.lat == null) return;
+    selectedPlane = { ...selectedPlane, ...a };
+    const last = trail[trail.length - 1];
+    if (!last || last[0] !== a.lat || last[1] !== a.lon) {
+      trail.push([a.lat, a.lon]);
+      if (trail.length > 120) trail.shift();
+      drawTrail();
+    }
+    const idx = lastPlanes.findIndex((p) => p.hex === selectedPlane.hex);
+    if (idx >= 0) lastPlanes[idx] = selectedPlane;
+    renderPlaneMarkers(lastPlanes);
+    showPlaneInfo(selectedPlane);   // live altitude on the flap
+  } catch { /* ignore */ }
 }
 
 // lastPlanes is sorted by distance, so the first low flyer is the closest one.

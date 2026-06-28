@@ -254,6 +254,24 @@ body {
   background: #0b0c10;
 }
 
+/* Flightradar24 link shown under the map after selecting a plane */
+#fr24-link {
+  display: block;
+  margin: 9px 11px 11px;
+  padding: 10px;
+  text-align: center;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+#fr24-link[hidden] { display: none; }
+#fr24-link:active { filter: brightness(1.25); }
+
 .plane-marker .pm {
   width: 26px;
   height: 26px;
