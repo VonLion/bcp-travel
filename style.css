@@ -295,8 +295,14 @@ body.lucht #plane-list { flex: 1; min-height: 0; overflow-y: auto; }
 }
 
 .plane-marker .pm svg { width: 26px; height: 26px; display: block; }
-.plane-marker .pm svg path { fill: var(--amber); stroke: #1a1505; stroke-width: 0.6; }
-.plane-marker .pm.sel svg path { fill: var(--accent); stroke: #06201f; }
+.plane-marker .pm svg path,
+.plane-marker .pm svg rect,
+.plane-marker .pm svg ellipse,
+.plane-marker .pm svg circle { fill: var(--amber); }
+.plane-marker .pm.sel svg path,
+.plane-marker .pm.sel svg rect,
+.plane-marker .pm.sel svg ellipse,
+.plane-marker .pm.sel svg circle { fill: var(--accent); }
 .plane-marker .pm.sel { filter: drop-shadow(0 0 5px rgba(43, 188, 188, 0.95)); }
 
 /* Selected list row */

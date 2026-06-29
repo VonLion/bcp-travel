@@ -578,12 +578,13 @@ const fr24Url = (a) => {
     : `https://www.flightradar24.com/data/aircraft/${encodeURIComponent(a.r || '')}`;
 };
 // Top-view glyphs per aircraft kind (pointing north; rotated to the track).
+const GA_ICON = '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="11.5" rx="2.5" ry="7.8"/><rect x="3" y="8.6" width="18" height="2.8" rx="1.4"/><rect x="8.6" y="17.4" width="6.8" height="2" rx="1"/><ellipse cx="12" cy="3.2" rx="2.6" ry="0.8"/></svg>';
 const PLANE_ICONS = {
-  jet: '<svg viewBox="0 0 24 24"><path d="M12 2 L13.5 10.5 L21 14.5 L21 16 L13.5 13.5 L13 19 L15.5 20.8 L15.5 22 L12 20.8 L8.5 22 L8.5 20.8 L11 19 L10.5 13.5 L3 16 L3 14.5 L10.5 10.5 Z"/></svg>',
-  ga: '<svg viewBox="0 0 24 24"><path d="M12 3 L12.9 9 L21 11 L21 12.4 L12.9 11.4 L12.8 18 L15.2 20 L15.2 21.2 L12 20.2 L8.8 21.2 L8.8 20 L11.2 18 L11.1 11.4 L3 12.4 L3 11 L11.1 9 Z"/></svg>',
+  jet: '<svg viewBox="0 0 24 24"><path d="M12 1.8 C12.7 1.8 13.1 3.2 13.2 5.4 L13.3 9.2 L22 13.6 L22 15.2 L13.3 13 L13.4 18 L16.3 20 L16.3 21.2 L12 19.9 L7.7 21.2 L7.7 20 L10.6 18 L10.7 13 L2 15.2 L2 13.6 L10.7 9.2 L10.8 5.4 C10.9 3.2 11.3 1.8 12 1.8 Z"/></svg>',
+  ga: GA_ICON,
   glider: '<svg viewBox="0 0 24 24"><path d="M12 3 L12.5 9.5 L23 10.3 L23 11.2 L12.5 10.9 L12.4 18 L14 20 L14 21 L12 20.3 L10 21 L10 20 L11.6 18 L11.5 10.9 L1 11.2 L1 10.3 L11.5 9.5 Z"/></svg>',
-  heli: '<svg viewBox="0 0 24 24"><path d="M11.2 3 H12.8 V11.2 H21 V12.8 H12.8 V21 H11.2 V12.8 H3 V11.2 H11.2 Z"/></svg>',
-  misc: '<svg viewBox="0 0 24 24"><path d="M12 7 L17 12 L12 17 L7 12 Z"/></svg>',
+  heli: '<svg viewBox="0 0 24 24"><rect x="3" y="9.3" width="18" height="1.4" rx="0.7"/><ellipse cx="12" cy="11.8" rx="2.6" ry="3.8"/><rect x="11.2" y="14.5" width="1.6" height="6" rx="0.6"/><rect x="9.6" y="19.6" width="4.8" height="1.3" rx="0.6"/></svg>',
+  misc: GA_ICON,
 };
 
 // ADS-B emitter category -> our buckets. (C* = surface vehicles, filtered out.)
@@ -685,7 +686,7 @@ function renderPlaneMarkers(ac) {
     const scale = sel ? 1.3 : (low ? 1 : 0.62);
     const opacity = sel ? 1 : (low ? 1 : 0.5);
     const kind = planeKind(a);
-    const rot = kind === 'misc' ? 0 : Math.round(a.track || 0);   // diamond doesn't point
+    const rot = Math.round(a.track || 0);
     const icon = L.divIcon({
       className: 'plane-marker',
       html: `<div class="pm${sel ? ' sel' : ''}" `
